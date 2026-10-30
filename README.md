@@ -21,6 +21,18 @@ Pull requests to upstream are welcome on `19.0`: Data Dance applies an
 accepted one to the source, keeping your authorship, and it returns in the
 next sync. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Odoo 18 port (rimedo, branch `odoo18-port/peppol`)
+
+The `18.0-sk-invoice` cut still carries 19.0 code and does not install on
+Odoo 18. This branch makes the invoice and Peppol modules install and run on
+18.0; see the commit for the list of changes. Ported and tested:
+`l10n_cssk_core`, `l10n_cssk_payment_symbols`, `l10n_sk_base`,
+`l10n_sk_invoice`, `l10n_sk_ubl_bis3`, `edi_base`, `edi_base_peppol`,
+`edi_epostak_*` — 60 of 62 tests pass; the two `l10n_sk_invoice` failures
+expect 19.0's "0% EU services" sale tax, which the 18.0 SK chart lacks.
+Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
+`migrations/19.0.*` never run on 18.0 versions.
+
 ## Modules
 
 12 modules, licensed `AGPL-3`. Versions are the `19.0` manifests.
