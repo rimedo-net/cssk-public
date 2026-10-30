@@ -31,7 +31,12 @@ class CSSKPersonType(models.Model):
     description = fields.Text(translate=True)
     active = fields.Boolean(default=True)
 
-    _uniq_code_per_country = models.Constraint(
-        "UNIQUE(country_code, code)",
-        "The person-type code must be unique per country.",
-    )
+    # Odoo 18: _sql_constraints (models.Constraint is 19.0+)
+
+    _sql_constraints = [
+
+        ("uniq_code_per_country", "UNIQUE(country_code, code)",
+
+         "The person-type code must be unique per country."),
+
+    ]

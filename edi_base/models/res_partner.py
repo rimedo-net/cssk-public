@@ -1,5 +1,6 @@
 from odoo import fields, models
-from odoo.addons.base.models.res_partner import ResPartner as BaseResPartner
+# Odoo 18 port: the base class is ``Partner`` in 18.0 (``ResPartner`` in 19.0).
+from odoo.addons.base.models.res_partner import Partner as BaseResPartner
 
 
 class ResPartner(models.Model):

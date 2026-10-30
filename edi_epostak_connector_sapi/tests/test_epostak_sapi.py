@@ -552,7 +552,7 @@ class TestEpostakIntegratorKey(TransactionCase):
         admin = self.env["res.users"].create({
             "name": "Settings admin, no EDI groups",
             "login": "epostak-settings-admin",
-            "group_ids": [(6, 0, [
+            "groups_id": [(6, 0, [
                 self.env.ref("base.group_user").id,
                 self.env.ref("base.group_system").id,
             ])],
@@ -573,7 +573,7 @@ class TestEpostakIntegratorKey(TransactionCase):
     def test_health_label_is_readable_by_a_plain_administrator(self):
         admin = self.env["res.users"].create({
             "name": "Settings admin 2", "login": "epostak-settings-admin-2",
-            "group_ids": [(6, 0, [
+            "groups_id": [(6, 0, [
                 self.env.ref("base.group_user").id,
                 self.env.ref("base.group_system").id,
             ])],

@@ -184,10 +184,11 @@ class CSSKFilingDiscrepancy(models.Model):
     # than one right-hand side — a VAT return is put beside a recomputation of
     # itself AND beside účet 343 — and those two comparisons legitimately
     # carry the same row code with different figures.
-    _row_uniq = models.Constraint(
-        "UNIQUE (res_model, res_id, basis, code)",
-        "One comparison row per row of a filing, per basis of comparison.",
-    )
+    # Odoo 18: _sql_constraints (models.Constraint is 19.0+)
+    _sql_constraints = [
+        ("row_uniq", "UNIQUE (res_model, res_id, basis, code)",
+         "One comparison row per row of a filing, per basis of comparison."),
+    ]
 
     @api.model
     def _cssk_form_selection(self):

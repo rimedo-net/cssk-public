@@ -92,7 +92,7 @@ class TestSkInvoice(AccountTestInvoicingCommon):
     def test_intra_eu_service_is_reverse_charge_not_section_43(self):
         """A B2B service to an EU customer is not an exempt §43 supply of
         goods; printing §43 contradicted core's article 196 note."""
-        inv = self._invoice(self.eu_partner, self.env["account.chart.template"].ref("vy_eu_s"))
+        inv = self._invoice(self.eu_partner, self.env["account.chart.template"].ref("vy_dod_eu"))
         self.assertNotIn("§43", inv.l10n_sk_legal_notes)
         self.assertIn("§15 ods. 1", inv.l10n_sk_legal_notes)
         self.assertIn("Prenesenie daňovej povinnosti", inv.l10n_sk_legal_notes)
@@ -110,7 +110,7 @@ class TestSkInvoice(AccountTestInvoicingCommon):
         inv = self.init_invoice(
             "out_invoice", partner=self.eu_partner, amounts=[100.0, 50.0],
             taxes=self.zero_tax)
-        inv.invoice_line_ids[1].tax_ids = self.env["account.chart.template"].ref("vy_eu_s")
+        inv.invoice_line_ids[1].tax_ids = self.env["account.chart.template"].ref("vy_dod_eu")
         inv.action_post()
         self.assertIn("§43", inv.l10n_sk_legal_notes)
         self.assertIn("§15 ods. 1", inv.l10n_sk_legal_notes)

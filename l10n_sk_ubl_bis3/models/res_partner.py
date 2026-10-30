@@ -37,9 +37,19 @@ import logging
 
 from odoo import api, fields, models
 from odoo.addons.account_edi_ubl_cii.models.account_edi_common import EAS_MAPPING
-from odoo.addons.account_edi_ubl_cii.models.res_partner import (
-    sanitize_peppol_endpoint,
-)
+try:
+    from odoo.addons.account_edi_ubl_cii.models.res_partner import (
+        sanitize_peppol_endpoint,
+    )
+except ImportError:  # Odoo 18 port: the helper is 19.0+
+    import re as _re
+
+    _PEPPOL_ENDPOINT_INVALID_CHARS_RE = _re.compile(r'[^a-zA-Z\d\-._~]')
+
+    def sanitize_peppol_endpoint(peppol_endpoint, eas=None):
+        if not peppol_endpoint:
+            return peppol_endpoint
+        return _PEPPOL_ENDPOINT_INVALID_CHARS_RE.sub('', peppol_endpoint)
 
 
 _logger = logging.getLogger(__name__)
@@ -181,15 +191,19 @@ class ResPartner(models.Model):
         # EXTENDS 'account_edi_ubl_cii' - the endpoint now moves with the DIČ.
         return super()._peppol_eas_endpoint_depends() + ['l10n_sk_dic']
 
-    def _get_peppol_endpoint_value(self, country_code, field, eas):
+    def _get_peppol_endpoint_value(self, country_code, field, eas=None):
         # EXTENDS 'account_edi_ubl_cii'
+        # Odoo 18 port: 18.0 calls this without ``eas``; the partner's own
+        # scheme is the one _compute_peppol_endpoint is resolving for.
+        if eas is None:
+            eas = self.peppol_eas
         # Keyed on the EAS code, not on `field`: EAS_MAPPING['SK']['0245'] still
         # reads 'company_registry' upstream and this module no longer edits it,
         # so the field name that arrives here is the wrong one by definition.
         # The code is what says which number is meant.
         if country_code == 'SK' and eas == '0245':
             return sanitize_peppol_endpoint(self._l10n_sk_get_dic(), eas)
-        return super()._get_peppol_endpoint_value(country_code, field, eas)
+        return super()._get_peppol_endpoint_value(country_code, field)
 
     @api.depends(lambda self: self._peppol_eas_endpoint_depends())
     def _compute_peppol_eas(self):

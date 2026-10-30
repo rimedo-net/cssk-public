@@ -66,6 +66,15 @@ class AccountEdiXmlUbl_Sk(models.AbstractModel):
         constraints.update(self._l10n_sk_peppol_constraints(invoice, vals))
         return constraints
 
+    def _export_invoice_constraints_new(self, invoice, vals):
+        # EXTENDS 'account.edi.xml.ubl_bis3'
+        # Odoo 18 port: 18.0 exports BIS3 through the "new" dict_to_xml path,
+        # whose constraint hook is this one; ubl_bis3 calls the ubl_20 version
+        # of _export_invoice_constraints from it, skipping our override above.
+        constraints = super()._export_invoice_constraints_new(invoice, vals)
+        constraints.update(self._l10n_sk_peppol_constraints(invoice, vals))
+        return constraints
+
     def _l10n_sk_peppol_constraints(self, invoice, vals):
         """Refuse a Slovak party with no DIČ, here rather than at the gateway.
 

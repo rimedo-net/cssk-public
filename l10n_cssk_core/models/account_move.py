@@ -9,6 +9,19 @@ _logger = logging.getLogger(__name__)
 class AccountMove(models.Model):
     _inherit = "account.move"
 
+    # Odoo 18 port: core ``account`` gained ``taxable_supply_date`` and
+    # ``show_taxable_supply_date`` in 19.0; in 18.0 only l10n_sk / l10n_cz
+    # declare the date. Declared here (same column) so the views and the
+    # period logic work with or without a country module installed.
+    taxable_supply_date = fields.Date(string="Taxable Supply Date", copy=False)
+    show_taxable_supply_date = fields.Boolean(
+        compute="_compute_show_taxable_supply_date",
+    )
+
+    def _compute_show_taxable_supply_date(self):
+        for move in self:
+            move.show_taxable_supply_date = move.country_code in ("CZ", "SK")
+
     cssk_vat_deduction_date = fields.Date(
         string="VAT period declared",
         copy=False,

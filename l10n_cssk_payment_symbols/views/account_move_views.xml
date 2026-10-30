@@ -34,8 +34,11 @@
                  The conditions are 19.0's, not 18.0's: core dropped
                  ``out_receipt`` from the vendor-bill branch between the two, so
                  copying 18.0's selectors across would match nothing and fail at
-                 install. -->
-            <xpath expr="//field[@name='payment_reference'][@invisible=&quot;move_type not in ('in_invoice', 'in_refund', 'in_receipt')&quot;]"
+                 install.
+
+                 Odoo 18 port: the vendor-bill selectors below use 18.0's
+                 condition again (with ``out_receipt``). -->
+            <xpath expr="//field[@name='payment_reference'][@invisible=&quot;move_type not in ('in_invoice', 'in_refund', 'out_receipt', 'in_receipt')&quot;]"
                    position="attributes">
                 <attribute name="string">Payment Reference</attribute>
             </xpath>
@@ -50,7 +53,7 @@
                  it follows, so exactly one is ever shown. ``out_receipt`` gets
                  none because core shows it no ``payment_reference`` in this
                  form at all. -->
-            <xpath expr="//field[@name='payment_reference'][@invisible=&quot;move_type not in ('in_invoice', 'in_refund', 'in_receipt')&quot;]"
+            <xpath expr="//field[@name='payment_reference'][@invisible=&quot;move_type not in ('in_invoice', 'in_refund', 'out_receipt', 'in_receipt')&quot;]"
                    position="after">
                 <field
                     name="l10n_cssk_variable_symbol"

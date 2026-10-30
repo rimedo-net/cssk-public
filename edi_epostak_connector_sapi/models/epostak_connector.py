@@ -737,8 +737,9 @@ class EpostakConnectorSapi(models.TransientModel):
         Users = self.env["res.users"].sudo()
         for group in ("edi_base.group_edi_manager", "edi_base.group_edi_user"):
             grp = self.env.ref(group, raise_if_not_found=False)
-            if grp and grp.user_ids:
-                return grp.user_ids[0]
+            # Odoo 18 port: res.groups.users (renamed user_ids in 19.0)
+            if grp and grp.users:
+                return grp.users[0]
         return (
             self.env.ref("base.user_admin", raise_if_not_found=False)
             or Users.browse(SUPERUSER_ID)

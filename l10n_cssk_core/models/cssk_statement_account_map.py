@@ -53,9 +53,15 @@ class CsskStatementAccountMap(models.Model):
         "code. Applies to balance-sheet balances only.")
     note = fields.Char()
 
-    _company_account_side_uniq = models.Constraint(
-        "UNIQUE (company_id, account_id, balance_side)",
-        "An account can be mapped only once per balance side.")
+    # Odoo 18: _sql_constraints (models.Constraint is 19.0+)
+
+    _sql_constraints = [
+
+        ("company_account_side_uniq", "UNIQUE (company_id, account_id, balance_side)",
+
+         "An account can be mapped only once per balance side."),
+
+    ]
 
     @api.constrains("reported_code")
     def _check_reported_code(self):
