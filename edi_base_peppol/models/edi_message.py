@@ -515,8 +515,9 @@ class EdiMessage(models.Model):
         if "is_in_extractable_state" in move._fields:
             move.is_in_extractable_state = False
 
-        file_data = Move._to_files_data(self.attachment_id)[0]
-        move._extend_with_attachments([file_data], new=True)
+        # Odoo 18 port: 18.0 takes the ir.attachment recordset itself
+        # (19.0 wants Move._to_files_data(...) dicts).
+        move._extend_with_attachments(self.attachment_id, new=True)
 
         # Reparent the payload attachment onto the created bill so it shows
         # in the bill's attachments, mirroring account_peppol.

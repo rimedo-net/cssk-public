@@ -57,6 +57,35 @@ class AccountEdiXmlUbl_Sk(models.AbstractModel):
                 payment_id['_text'] = variable_symbol
 
     # -------------------------------------------------------------------------
+    # Odoo 18 port: credit note -> original invoice (BT-25 / BT-26)
+    # -------------------------------------------------------------------------
+
+    def _ubl_add_billing_reference_nodes(self, vals):
+        # EXTENDS 'account.edi.xml.ubl_bis3'
+        # A Slovak corrective document must name the invoice it corrects
+        # (§ 71 ods. 2 zákona o DPH; FS SR e-faktúra FAQ, príklad 50: BT-25).
+        # 18.0 core fills BillingReference only for Dutch suppliers.
+        super()._ubl_add_billing_reference_nodes(vals)
+        invoice = vals.get('invoice')
+        if not invoice or vals.get('document_type') != 'credit_note':
+            return
+        origin = invoice.reversed_entry_id
+        if not origin or not origin.name or origin.name == '/':
+            return
+        nodes = vals['document_node']['cac:BillingReference']
+        if any(
+            (node.get('cac:InvoiceDocumentReference') or {}).get('cbc:ID', {}).get('_text') == origin.name
+            for node in nodes
+        ):
+            return
+        nodes.append({
+            'cac:InvoiceDocumentReference': {
+                'cbc:ID': {'_text': origin.name},
+                'cbc:IssueDate': {'_text': origin.invoice_date},
+            }
+        })
+
+    # -------------------------------------------------------------------------
     # Odoo 18 port: delivery date (BT-72) from the taxable supply date
     # -------------------------------------------------------------------------
 
