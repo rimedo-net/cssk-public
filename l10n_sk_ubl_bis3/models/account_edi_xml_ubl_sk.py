@@ -57,6 +57,34 @@ class AccountEdiXmlUbl_Sk(models.AbstractModel):
                 payment_id['_text'] = variable_symbol
 
     # -------------------------------------------------------------------------
+    # Odoo 18 port: delivery date (BT-72) from the taxable supply date
+    # -------------------------------------------------------------------------
+
+    def _ubl_add_invoice_delivery_nodes(self, vals):
+        # EXTENDS 'account.edi.ubl'
+        # § 74 ods. 1 písm. d) wants the date of supply on every invoice; the
+        # SK CIUS checks it as SK-R-012. 18.0 core emits cac:Delivery only for
+        # a delivery address and dates it from ``delivery_date`` (19.0 carries
+        # ``taxable_supply_date`` itself), so a plain service invoice went out
+        # with no BT-72 at all.
+        super()._ubl_add_invoice_delivery_nodes(vals)
+        invoice = vals.get('invoice')
+        if not invoice:
+            return
+        supply_date = (
+            ('taxable_supply_date' in invoice._fields and invoice.taxable_supply_date)
+            or invoice.delivery_date
+            or invoice.invoice_date
+        )
+        if not supply_date:
+            return
+        nodes = vals['document_node']['cac:Delivery']
+        if not nodes:
+            nodes.append({'cbc:ActualDeliveryDate': {'_text': supply_date}})
+        elif not nodes[0]['cbc:ActualDeliveryDate'].get('_text'):
+            nodes[0]['cbc:ActualDeliveryDate']['_text'] = supply_date
+
+    # -------------------------------------------------------------------------
     # A Slovak party must be identifiable before the document leaves
     # -------------------------------------------------------------------------
 
