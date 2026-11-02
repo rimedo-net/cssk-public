@@ -16,7 +16,8 @@
                 <button type="object" name="action_cssk_statutory_footprint"
                         class="oe_stat_button" icon="fa-sitemap"
                         groups="account.group_account_user,account.group_account_manager"
-                        invisible="state != 'posted'">
+                        invisible="state != 'posted' or not cssk_footprint_available">
+                    <field name="cssk_footprint_available" invisible="1"/>
                     <span class="o_stat_text">Statutory footprint</span>
                 </button>
             </div>

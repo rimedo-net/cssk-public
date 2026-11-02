@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class AccountMoveLine(models.Model):
@@ -14,6 +14,13 @@ class AccountMoveLine(models.Model):
         """
         self.ensure_one()
         return []
+
+    @api.model
+    def _cssk_footprint_has_contributor(self):
+        """True when some installed module overrides
+        :meth:`_cssk_statutory_footprint` — i.e. the registry's final
+        implementation is not this module's empty one."""
+        return type(self)._cssk_statutory_footprint is not AccountMoveLine._cssk_statutory_footprint
 
     def _cssk_footprint_country(self):
         self.ensure_one()

@@ -22,6 +22,21 @@ class AccountMove(models.Model):
         for move in self:
             move.show_taxable_supply_date = move.country_code in ("CZ", "SK")
 
+    cssk_footprint_available = fields.Boolean(
+        compute="_compute_cssk_footprint_available",
+        help="A statutory-report module extends _cssk_statutory_footprint, so "
+        "the footprint can list something.",
+    )
+
+    def _compute_cssk_footprint_available(self):
+        # Core only declares the hook (it returns []); the rows come from the
+        # report modules (VAT return, KV/KH, EC summary, FS, income tax,
+        # Intrastat). The 18.0-sk-invoice cut ships none of them, and the
+        # button opened an empty window on every posted document.
+        available = self.env["account.move.line"]._cssk_footprint_has_contributor()
+        for move in self:
+            move.cssk_footprint_available = available
+
     cssk_vat_deduction_date = fields.Date(
         string="VAT period declared",
         copy=False,
