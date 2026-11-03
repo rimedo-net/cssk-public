@@ -22,6 +22,29 @@ produces correctly for a Slovak company. This module only fills the gaps:
 * **Variabilný symbol (VS).** Mapped onto ``cac:PaymentMeans/cbc:PaymentID``
   (BT-83): the explicit payment reference if set, otherwise the numeric tail of
   the invoice number.
+* **BIS 3.0 terms core leaves out.** Filled only when Odoo holds the data:
+
+  ======  ========================================  ======================================
+  Term    UBL element                               Source in Odoo
+  ======  ========================================  ======================================
+  BT-25   ``BillingReference``                      credit note → ``reversed_entry_id``
+  BT-30   ``PartyLegalEntity/CompanyID``            seller IČO (``company_registry``)
+  BT-33   ``PartyLegalEntity/CompanyLegalForm``     company ``trade_registry``
+  BT-47   ``PartyLegalEntity/CompanyID``            buyer IČO (``company_registry``)
+  BT-72   ``Delivery/ActualDeliveryDate``           ``taxable_supply_date``
+  BT-85   ``PayeeFinancialAccount/Name``            bank ``acc_holder_name``
+  ======  ========================================  ======================================
+
+  Core's UBL templates refuse elements they do not list, so the builder
+  extends a deep copy of the template with ``CompanyLegalForm`` and
+  ``FinancialAccount/Name``. To add another BIS 3.0 term, add its element to
+  the template the same way, then fill it in the matching ``_ubl_add_*``
+  hook. Stay inside Peppol BIS 3.0: other UBL 2.1 elements trigger the
+  ``UBL-CR-*`` rules at the access point.
+
+  BIS 3.0 terms with no Odoo field are not generated. They are listed in
+  ``CHANGELOG.rst`` (18.0.3.2.0). BT-86 (BIC) comes from core once the
+  company's bank account has a bank with a BIC.
 
 Out of scope
 ============
@@ -40,7 +63,7 @@ the relevant bank account.
 Documentation
 =============
 
-* ``CHANGELOG.md`` — release history.
+* ``CHANGELOG.rst`` — release history.
 
 Credits
 =======

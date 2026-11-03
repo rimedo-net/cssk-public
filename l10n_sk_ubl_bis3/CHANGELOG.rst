@@ -8,6 +8,53 @@ Versioning follows the Odoo manifest (``19.0.x.y.z``); format follows Keep a Cha
 [Unreleased]
 ------------
 
+[18.0.3.2.0] — 2026-11-02
+-------------------------
+
+Added
+~~~~~
+
+Peppol BIS 3.0 terms that Odoo already holds data for, but core's builder
+never put on the document. Each is emitted only when the data is set, so an
+invoice without it is unchanged.
+
+- **BT-33 Seller additional legal information**
+  (``AccountingSupplierParty/Party/PartyLegalEntity/cbc:CompanyLegalForm``)
+  from the company's ``trade_registry`` (``l10n_sk``). This is the commercial
+  register entry that § 3a Obchodného zákonníka requires on business documents,
+  e.g. "Obchodný register Mestského súdu Bratislava III, oddiel: Sro,
+  vložka č. 166533/B".
+- **BT-85 Payment account name**
+  (``PaymentMeans/PayeeFinancialAccount/cbc:Name``) from the bank account's
+  ``acc_holder_name``.
+
+Changed
+~~~~~~~
+
+- **BT-30 / BT-47 Legal registration identifier is now the IČO** for a Slovak
+  party (``company_registry``, whitespace stripped, no ``schemeID``). Core has
+  no Slovak branch there and fell back to the IČ DPH, so the VAT number was
+  repeated in BT-30 although it already travels as BT-31 / BT-48. A party
+  without an IČO keeps the old IČ DPH fallback.
+
+Notes
+~~~~~
+
+- Core's UBL templates (``account_edi_ubl_cii/tools/ubl_21_*.py``) list only
+  the elements core itself emits, and ``dict_to_xml`` raises on any other.
+  ``_get_document_template`` therefore returns a *deep copy* with
+  ``cbc:CompanyLegalForm`` and ``cbc:Name`` inserted at their UBL 2.1
+  positions. The copy matters: the templates are module-level dicts shared by
+  every UBL format, so patching them in place would leak into other builders.
+- Both transports pass the UBL through unchanged and validate it against XSD,
+  EN 16931 and Peppol BIS 3.0 (iPoštár also against SK CIUS). All three terms
+  are part of BIS 3.0, so no transport change is needed.
+- Investigated and **not** added, because Odoo has no field for them (or the
+  instance has no data): BT-7, BT-11, BT-12, BT-15, BT-16, BT-17, BT-18, BT-19,
+  BT-71, BT-124, BG-10, BG-11, BG-18, BG-19, BT-127, BT-128, BT-133, BT-149,
+  BT-156, BT-159. BT-86 (BIC) is already emitted by core once the bank
+  account has a bank (``bank_id``) with a BIC.
+
 [19.0.1.1.1] — 2026-09-13
 -------------------------
 

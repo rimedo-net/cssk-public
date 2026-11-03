@@ -1,7 +1,24 @@
 # -*- coding: utf-8 -*-
+import copy
 import re
 
 from odoo import _, models
+
+
+def _template_insert_after(node, after, key):
+    """Insert an empty ``key`` into template ``node`` right after ``after``.
+
+    Templates fix the UBL element order, and ``dict_to_xml`` refuses a child
+    they do not list — so a BIS 3.0 element core leaves out of the template
+    cannot be emitted until it is added here, in its UBL 2.1 position.
+    """
+    if key in node:
+        return
+    items = list(node.items())
+    position = [k for k, _v in items].index(after) + 1
+    items.insert(position, (key, {}))
+    node.clear()
+    node.update(items)
 
 
 class AccountEdiXmlUbl_Sk(models.AbstractModel):
@@ -112,6 +129,54 @@ class AccountEdiXmlUbl_Sk(models.AbstractModel):
             nodes.append({'cbc:ActualDeliveryDate': {'_text': supply_date}})
         elif not nodes[0]['cbc:ActualDeliveryDate'].get('_text'):
             nodes[0]['cbc:ActualDeliveryDate']['_text'] = supply_date
+
+    # -------------------------------------------------------------------------
+    # BIS 3.0 terms core leaves out although Odoo holds the data
+    # -------------------------------------------------------------------------
+
+    def _get_document_template(self, vals):
+        # EXTENDS 'account.edi.xml.ubl_20'
+        # A deep copy: core's templates are module-level dicts shared by every
+        # builder, so editing them in place would leak into other formats.
+        template = copy.deepcopy(super()._get_document_template(vals))
+        party = template['cac:AccountingSupplierParty']['cac:Party']
+        _template_insert_after(party['cac:PartyLegalEntity'], 'cbc:CompanyID', 'cbc:CompanyLegalForm')
+        account = template['cac:PaymentMeans']['cac:PayeeFinancialAccount']
+        _template_insert_after(account, 'cbc:ID', 'cbc:Name')
+        return template
+
+    def _ubl_add_party_legal_entity_nodes(self, vals):
+        # EXTENDS 'account.edi.xml.ubl_bis3'
+        # BT-30 / BT-47: the legal registration identifier of a Slovak party is
+        # its IČO. Core has no SK branch and falls back to the IČ DPH, which
+        # the document already carries as BT-31 / BT-48.
+        super()._ubl_add_party_legal_entity_nodes(vals)
+        partner = vals['party_vals']['partner'].commercial_partner_id
+        ico = re.sub(r'\s', '', partner.company_registry or '')
+        if partner.country_code != 'SK' or not ico:
+            return
+        for node in vals['party_node']['cac:PartyLegalEntity']:
+            node['cbc:CompanyID'] = {'_text': ico, 'schemeID': None}
+
+    def _ubl_add_accounting_supplier_party_legal_entity_nodes(self, vals):
+        # EXTENDS 'account.edi.ubl'
+        # BT-33 Seller additional legal information: the commercial register
+        # entry (§ 3a Obchodného zákonníka), kept by l10n_sk on the company.
+        super()._ubl_add_accounting_supplier_party_legal_entity_nodes(vals)
+        invoice = vals.get('invoice')
+        legal_form = invoice and (invoice.company_id.trade_registry or '').strip()
+        if not legal_form:
+            return
+        for node in vals['party_node']['cac:PartyLegalEntity']:
+            node['cbc:CompanyLegalForm'] = {'_text': legal_form}
+
+    def _ubl_get_payment_means_payee_financial_account_node_from_partner_bank(self, vals, partner_bank):
+        # EXTENDS 'account.edi.ubl'
+        # BT-85 Payment account name: the account holder, when recorded.
+        node = super()._ubl_get_payment_means_payee_financial_account_node_from_partner_bank(vals, partner_bank)
+        if node is not None and partner_bank.acc_holder_name:
+            node['cbc:Name'] = {'_text': partner_bank.acc_holder_name}
+        return node
 
     # -------------------------------------------------------------------------
     # A Slovak party must be identifiable before the document leaves

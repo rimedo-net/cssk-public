@@ -130,3 +130,77 @@ class TestUBLSlovakia(TestUBLCommon):
         )
         filename = self.env['account.edi.xml.ubl_sk']._export_invoice_filename(invoice)
         self.assertTrue(filename.endswith('_ubl_bis3_sk.xml'))
+
+    # -------------------------------------------------------------------------
+    # BIS 3.0 terms filled from data Odoo already holds
+    # -------------------------------------------------------------------------
+
+    def _export_tree(self, move_type='out_invoice'):
+        invoice = self._generate_move(
+            self.seller, self.buyer, send=False,
+            move_type=move_type,
+            currency_id=self.eur.id,
+            invoice_line_ids=[{
+                'product_id': self.product_a.id,
+                'quantity': 1,
+                'price_unit': 100.0,
+                'tax_ids': [Command.set(self.company_data['default_tax_sale'].ids)],
+            }],
+        )
+        # The fixtures carry no DIČ, so the constraint errors are expected;
+        # the document is still rendered, which is what is under test here.
+        xml_bytes, _errors = self.env['account.edi.xml.ubl_sk']._export_invoice(invoice)
+        return etree.fromstring(xml_bytes)
+
+    def test_export_legal_form_ico_and_account_name(self):
+        self.env.company.trade_registry = (
+            "Obchodný register Mestského súdu Bratislava III, oddiel: Sro, vložka č. 166533/B"
+        )
+        self.seller.bank_ids.acc_holder_name = "SK Seller s.r.o."
+        self.buyer.company_registry = "87654326"
+
+        tree = self._export_tree()
+        supplier = tree.find('cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity', NS)
+        customer = tree.find('cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity', NS)
+        account = tree.find('cac:PaymentMeans/cac:PayeeFinancialAccount', NS)
+
+        # BT-30 / BT-47: IČO, not the IČ DPH (that is BT-31 / BT-48).
+        self.assertEqual(supplier.findtext('cbc:CompanyID', namespaces=NS), "12345679")
+        self.assertEqual(customer.findtext('cbc:CompanyID', namespaces=NS), "87654326")
+        # BT-33, after CompanyID as UBL 2.1 orders it.
+        self.assertEqual(
+            supplier.findtext('cbc:CompanyLegalForm', namespaces=NS),
+            self.env.company.trade_registry,
+        )
+        self.assertEqual(
+            [etree.QName(child).localname for child in supplier],
+            ['RegistrationName', 'CompanyID', 'CompanyLegalForm'],
+        )
+        # BT-33 is a seller term only.
+        self.assertIsNone(customer.find('cbc:CompanyLegalForm', NS))
+        # BT-85, between the account ID and the branch.
+        self.assertEqual(account.findtext('cbc:Name', namespaces=NS), "SK Seller s.r.o.")
+        self.assertEqual(etree.QName(account[1]).localname, 'Name')
+
+    def test_export_without_the_data_emits_nothing_new(self):
+        self.env.company.trade_registry = False
+        self.seller.bank_ids.acc_holder_name = False
+        self.seller.company_registry = False
+
+        tree = self._export_tree()
+        supplier = tree.find('cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity', NS)
+        self.assertIsNone(supplier.find('cbc:CompanyLegalForm', NS))
+        self.assertEqual(supplier.findtext('cbc:CompanyID', namespaces=NS), "SK2020000004")
+        self.assertIsNone(tree.find('cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:Name', NS))
+
+    def test_credit_note_carries_the_same_terms(self):
+        self.env.company.trade_registry = "OR OS Bratislava I, oddiel Sro, vložka 1/B"
+        tree = self._export_tree(move_type='out_refund')
+        self.assertEqual(etree.QName(tree).localname, 'CreditNote')
+        self.assertEqual(
+            tree.findtext(
+                'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:CompanyLegalForm',
+                namespaces=NS,
+            ),
+            "OR OS Bratislava I, oddiel Sro, vložka 1/B",
+        )
