@@ -42,6 +42,9 @@ produces correctly for a Slovak company. This module only fills the gaps:
   hook. Stay inside Peppol BIS 3.0: other UBL 2.1 elements trigger the
   ``UBL-CR-*`` rules at the access point.
 
+  BT-30, BT-33, BT-47 and BT-85 were verified live on 2026-11-03: iPoštár
+  and ePošťák both validated and delivered the document.
+
   BIS 3.0 terms with no Odoo field are not generated. They are listed in
   ``CHANGELOG.rst`` (18.0.3.2.0). BT-86 (BIC) comes from core once the
   company's bank account has a bank with a BIC.

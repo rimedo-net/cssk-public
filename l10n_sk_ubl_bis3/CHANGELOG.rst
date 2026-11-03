@@ -49,6 +49,15 @@ Notes
 - Both transports pass the UBL through unchanged and validate it against XSD,
   EN 16931 and Peppol BIS 3.0 (iPoštár also against SK CIUS). All three terms
   are part of BIS 3.0, so no transport change is needed.
+- **Verified live on both sandboxes (2026-11-03)**, with an invoice that
+  carried all four terms (BT-30 and BT-47 as IČO, BT-33, BT-85):
+
+  - *iPoštár* accepted it and delivered it to ``0245:9999999999``
+    (id 907, ``SENT``). The only warning was SK-R-010, which concerns the
+    sandbox receiver's missing IČ DPH and was already raised for the same
+    receiver before this change.
+  - *ePošťák* accepted it from Sandbox B and delivered it to Sandbox A
+    (``0245:4230763835``, ``e0d4296d-…``, ``done``) with no errors or warnings.
 - Investigated and **not** added, because Odoo has no field for them (or the
   instance has no data): BT-7, BT-11, BT-12, BT-15, BT-16, BT-17, BT-18, BT-19,
   BT-71, BT-124, BG-10, BG-11, BG-18, BG-19, BT-127, BT-128, BT-133, BT-149,
