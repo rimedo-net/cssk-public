@@ -28,14 +28,15 @@ Odoo 18. This branch makes the invoice and Peppol modules install and run on
 18.0; see the commit for the list of changes. Ported and tested:
 `l10n_cssk_core`, `l10n_cssk_payment_symbols`, `l10n_sk_base`,
 `l10n_sk_invoice`, `l10n_sk_ubl_bis3`, `edi_base`, `edi_base_peppol`,
-`edi_epostak_*` — 60 of 62 tests pass; the two `l10n_sk_invoice` failures
+`edi_epostak_*`, plus the new `edi_ipostar_peppol` — 60 of 62 tests pass
+(without iPoštár's 11, which all pass); the two `l10n_sk_invoice` failures
 expect 19.0's "0% EU services" sale tax, which the 18.0 SK chart lacks.
 Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
 `migrations/19.0.*` never run on 18.0 versions.
 
 ## Modules
 
-12 modules, licensed `AGPL-3`. Versions are the `19.0` manifests.
+13 modules, licensed `AGPL-3`. Versions are the `19.0` manifests, except `edi_ipostar_peppol` (18.0 only).
 
 ### Slovak invoice
 
@@ -47,7 +48,7 @@ Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
 | `l10n_cssk_core` | 19.0.1.17.0 | Shared CZ/SK base. Declared dependency of `l10n_sk_invoice`. |
 | `l10n_sk_ubl_bis3` | 19.0.3.1.0 | Peppol BIS Billing 3.0 / UBL export for Slovakia. |
 
-### Peppol send (ePošťák)
+### Peppol send (ePošťák, iPoštár)
 
 | Module | Version | What it does |
 |---|---|---|
@@ -56,6 +57,7 @@ Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
 | `edi_epostak_base` | 19.0.1.0.1 | ePošťák access-point base. |
 | `edi_epostak_connector_sapi` | 19.0.1.1.1 | ePošťák SAPI-SK 1.0 connector. |
 | `edi_epostak_peppol` | 19.0.1.0.0 | Peppol BIS 3.0 through the ePošťák access point. |
+| `edi_ipostar_peppol` | 18.0.1.0.0 | Peppol BIS 3.0 through the iPoštár access point (rimedo, not from the Data Dance source). |
 
 ### Sale-order advance invoices
 

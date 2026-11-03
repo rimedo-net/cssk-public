@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2026 Rimedo, s.r.o.
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="view_res_config_settings_ipostar" model="ir.ui.view">
+        <field name="name">res.config.settings.view.ipostar</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="edi_base.view_res_config_settings_edi_base"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='edi_providers_anchor']" position="before">
+                <h2>iPoštár</h2>
+                <div class="ms-4" name="ipostar_section">
+                    <block title="Connection" name="ipostar_block">
+                        <setting help="New iPoštár accounts run in sandbox until switched over in the customer zone; sandbox sends are simulated.">
+                            <field name="ipostar_api_key" password="True" placeholder="ipk_..."/>
+                            <div class="mt-2">
+                                <button name="action_ipostar_test_connection" type="object"
+                                        string="Test connection" icon="fa-plug" class="btn-link"/>
+                            </div>
+                        </setting>
+                        <setting>
+                            <field name="ipostar_base_url"/>
+                        </setting>
+                        <setting>
+                            <field name="ipostar_lookback_days"/>
+                        </setting>
+                        <setting help="Only matters with several Peppol transports installed (e.g. ePošťák too).">
+                            <field name="peppol_transport"/>
+                        </setting>
+                    </block>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

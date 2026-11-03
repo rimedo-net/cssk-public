@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2026 Rimedo, s.r.o.
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <data noupdate="1">
+        <record id="cron_ipostar_get_messages" model="ir.cron">
+            <field name="name">iPoštár: Poll Inbound Documents</field>
+            <field name="model_id" ref="edi_base.model_edi_message"/>
+            <field name="state">code</field>
+            <field name="code">model._get_messages("ipostar")</field>
+            <field name="interval_number">30</field>
+            <field name="interval_type">minutes</field>
+            <field name="active">True</field>
+        </record>
+        <record id="cron_ipostar_query_status" model="ir.cron">
+            <field name="name">iPoštár: Query Outbound Delivery Status</field>
+            <field name="model_id" ref="edi_ipostar_peppol.model_ipostar_connector"/>
+            <field name="state">code</field>
+            <field name="code">model._query_status()</field>
+            <field name="interval_number">30</field>
+            <field name="interval_type">minutes</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>
