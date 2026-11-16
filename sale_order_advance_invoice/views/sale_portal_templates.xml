@@ -3,6 +3,12 @@
 
     <template id="sale_order_portal_content_advance_invoice" inherit_id="sale.sale_order_portal_content">
 
+        <!-- Core hides the line amount for downpayment lines. All lines of an
+             advance invoice are downpayment lines, so show the amount anyway. -->
+        <xpath expr="//td[@name='td_product_subtotal']/t[1]" position="attributes">
+            <attribute name="t-if">(not line.is_downpayment or sale_order.is_advance_invoice) and not collapse_prices</attribute>
+        </xpath>
+
         <!-- After the totals section, show payment info for advance invoices:
              bank account, reference, and QR code when enabled. -->
         <xpath expr="//div[@id='total']" position="after">

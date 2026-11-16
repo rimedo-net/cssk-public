@@ -138,11 +138,20 @@
                 <attribute name="column_invisible">parent.is_advance_invoice</attribute>
                 <attribute name="invisible" add="is_advance_tracking" separator=" or "/>
             </xpath>
+            <!-- Core hides the amount on down-payment lines (invisible="is_downpayment").
+                 Every line of an advance invoice is a down-payment line, so the amount
+                 would never show there: keep it visible on advance invoices. -->
             <xpath expr="//field[@name='order_line']/list/field[@name='price_subtotal'][not(@optional)]" position="attributes">
-                <attribute name="invisible" add="is_advance_tracking" separator=" or "/>
+                <attribute name="invisible">(is_downpayment and not parent.is_advance_invoice) or is_advance_tracking</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='price_total'][not(@optional)]" position="attributes">
-                <attribute name="invisible" add="is_advance_tracking" separator=" or "/>
+                <attribute name="invisible">(is_downpayment and not parent.is_advance_invoice) or is_advance_tracking</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_subtotal'][@optional]" position="attributes">
+                <attribute name="invisible">is_downpayment and not parent.is_advance_invoice</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_total'][@optional]" position="attributes">
+                <attribute name="invisible">is_downpayment and not parent.is_advance_invoice</attribute>
             </xpath>
         </field>
     </record>

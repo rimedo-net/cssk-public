@@ -42,11 +42,14 @@
             <t t-set="hide_taxes_details" t-value="hide_taxes_details or doc.is_advance_invoice"/>
         </xpath>
 
-        <!-- Core hides the amount cell for downpayment lines (t-if="not line.is_downpayment").
-             For advance invoices all lines are downpayment lines, so amounts would never render.
-             Override to always show the amount cell on advance invoices. -->
-        <xpath expr="//td[@name='td_product_subtotal']" position="attributes">
-            <attribute name="t-if">not line.is_downpayment or doc.is_advance_invoice</attribute>
+        <!-- Core hides the amount for downpayment lines. In 19.0 the condition lives on
+             the inner <t t-if="not line.is_downpayment and not collapse_prices"> (the
+             <td> itself is always rendered), so overriding the <td> no longer shows
+             the amount and would drop the cell (misaligning columns) on regular
+             orders. For advance invoices all lines are downpayment lines, so amounts
+             would never render: override the inner condition instead. -->
+        <xpath expr="//td[@name='td_product_subtotal']/t[1]" position="attributes">
+            <attribute name="t-if">(not line.is_downpayment or doc.is_advance_invoice) and not collapse_prices</attribute>
         </xpath>
 
         <!-- Hide the Unit Price column header and cells for advance invoices.
