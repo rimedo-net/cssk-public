@@ -166,6 +166,17 @@
         <field name="context">{'default_is_advance_invoice': True}</field>
     </record>
 
+    <!-- Hide received advance invoices from the standard RFQ and Purchase
+         Orders lists, as the sale side does: they have their own menu above.
+         Core's domains are kept (RFQs: none, Purchase Orders: confirmed). -->
+    <record id="purchase.purchase_rfq" model="ir.actions.act_window">
+        <field name="domain">[('is_advance_invoice', '=', False)]</field>
+    </record>
+
+    <record id="purchase.purchase_form_action" model="ir.actions.act_window">
+        <field name="domain">[('state', '=', 'purchase'), ('is_advance_invoice', '=', False)]</field>
+    </record>
+
     <menuitem
         id="menu_purchase_order_advance"
         name="Received Advance Invoices"

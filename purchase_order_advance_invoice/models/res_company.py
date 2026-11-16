@@ -57,6 +57,23 @@ class ResCompany(models.Model):
             limit=1,
         )
 
+    def _fit_purchase_advance_account_types(self):
+        """The paid-advances accounts must not be receivables.
+
+        The tax document on a sent payment is a vendor bill that books the net
+        advance on these accounts, and core refuses a receivable account on a
+        purchase document ("Account ... is of receivable type, but is used in
+        a purchase operation"). The Slovak chart types 314000 *Poskytnuté
+        preddavky* as a receivable, so every tax document failed there. Such
+        an account becomes a current asset; it stays reconcilable, so entries
+        already on it keep their matching.
+        """
+        self.ensure_one()
+        accounts = self.advance_paid_account_id | self.advance_paid_account_lt_id
+        accounts.filtered(
+            lambda account: account.account_type == "asset_receivable"
+        ).write({"account_type": "asset_current", "reconcile": True})
+
     def _apply_purchase_advance_setup(self, spec):
         """Idempotent: creates missing accounts/journal and fills only the
         EMPTY company fields, never clobbering manual configuration."""
@@ -87,6 +104,7 @@ class ResCompany(models.Model):
             account = self._resolve_purchase_advance_account(code)
             if account:
                 self[field_name] = account
+        self._fit_purchase_advance_account_types()
         if not self.advance_purchase_journal_id:
             Journal = self.env["account.journal"]
             journal = Journal.with_company(self).search(
