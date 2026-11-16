@@ -6,3 +6,4 @@ from . import test_advance_journal
 from . import test_advance_deduction_paid
 from . import test_advance_clearing
 from . import test_advance_payment_wizard
+from . import test_advance_display

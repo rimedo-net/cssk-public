@@ -223,17 +223,30 @@ class SaleOrder(models.Model):
     def _get_advance_tracking_line_quantity(self, advance_invoice):
         return 0.0
 
+    def _get_advance_issue_date(self):
+        """The day the advance was requested: its order date, in the user's timezone."""
+        self.ensure_one()
+        stamp = self.date_order or self.create_date
+        return fields.Datetime.context_timestamp(self, stamp).date() if stamp else False
+
     def _get_advance_tracking_line_description(self, advance_invoice):
         env = self.with_context(lang=self.partner_id.lang).env
         tracking_state = self._get_advance_tracking_state(advance_invoice)
+        issue_date = advance_invoice._get_advance_issue_date()
+        issue_date = format_date(env, issue_date) if issue_date else ''
         if tracking_state == 'draft':
             description = env._(
                 "Advance Invoice %(name)s: %(date)s (Draft)",
                 name=advance_invoice.name,
-                date=format_date(env, advance_invoice.create_date.date()) if advance_invoice.create_date else '',
+                date=issue_date,
             )
         elif tracking_state == 'cancel':
             description = env._("Advance Invoice %(name)s (Cancelled)", name=advance_invoice.name)
+        elif issue_date:
+            # When it was requested first, then when (and whether) it was paid.
+            description = env._(
+                "Advance Invoice %(name)s of %(date)s", name=advance_invoice.name, date=issue_date,
+            )
         else:
             description = env._("Advance Invoice %(name)s", name=advance_invoice.name)
 
@@ -1008,6 +1021,20 @@ class SaleOrder(models.Model):
                     if cmd[0] == 0 and cmd[2].get('is_downpayment') and cmd[2].get('quantity', 0) < 0:
                         cmd[2]['quantity'] = abs(cmd[2]['quantity'])
         return super()._create_account_invoices(invoice_vals_list, final)
+
+    def _prepare_confirmation_values(self):
+        """An advance keeps the date it was issued on.
+
+        Core stamps the order date with the confirmation time. An advance is
+        confirmed when it is paid, and its order date is the issue date printed
+        on it and the base of its due date, so moving it would re-date a
+        document the customer already holds. A batch mixing advances and orders
+        keeps core's behaviour (one values dict serves the whole batch).
+        """
+        values = super()._prepare_confirmation_values()
+        if self and all(order.is_advance_invoice for order in self):
+            values.pop('date_order', None)
+        return values
 
     def write(self, vals):
         res = super().write(vals)

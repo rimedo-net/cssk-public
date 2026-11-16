@@ -230,6 +230,12 @@ msgid "Advance Invoice %(name)s: %(date)s (Draft)"
 msgstr ""
 
 #. module: sale_order_advance_invoice
+#. odoo-python
+#: code:addons/sale_order_advance_invoice/models/sale_order.py:0
+msgid "Advance Invoice %(name)s of %(date)s"
+msgstr ""
+
+#. module: sale_order_advance_invoice
 #: model:ir.model.fields,field_description:sale_order_advance_invoice.field_sale_order__advance_invoice_count
 msgid "Advance Invoice Count"
 msgstr ""
