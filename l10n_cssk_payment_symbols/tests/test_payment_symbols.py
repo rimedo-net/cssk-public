@@ -41,6 +41,62 @@ class TestPaymentSymbols(AccountTestInvoicingCommon):
         bill = self._invoice(move_type="in_invoice", ref="FA-2026/00042")
         self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
 
+    def test_vs_typed_on_draft_survives_posting(self):
+        invoice = self._invoice()
+        invoice.l10n_cssk_variable_symbol = "555"
+        invoice.action_post()
+        self.assertEqual(invoice.l10n_cssk_variable_symbol, "555")
+        self.assertTrue(invoice.l10n_cssk_variable_symbol_manual)
+
+    def test_vs_typed_on_posted_survives_recompute(self):
+        invoice = self._invoice()
+        invoice.action_post()
+        invoice.l10n_cssk_variable_symbol = "1234567890"
+        # any dependency change re-runs the compute
+        invoice.ref = "PO-77"
+        self.assertEqual(invoice.l10n_cssk_variable_symbol, "1234567890")
+
+    def test_vs_cleared_follows_the_number_again(self):
+        invoice = self._invoice()
+        invoice.l10n_cssk_variable_symbol = "555"
+        invoice.l10n_cssk_variable_symbol = False
+        self.assertFalse(invoice.l10n_cssk_variable_symbol_manual)
+        invoice.action_post()
+        digits = "".join(ch for ch in invoice.name if ch.isdigit())[-10:]
+        self.assertEqual(invoice.l10n_cssk_variable_symbol, digits)
+
+    def test_vs_not_copied_to_duplicate(self):
+        invoice = self._invoice()
+        invoice.l10n_cssk_variable_symbol = "555"
+        duplicate = invoice.copy()
+        self.assertFalse(duplicate.l10n_cssk_variable_symbol_manual)
+        duplicate.action_post()
+        digits = "".join(ch for ch in duplicate.name if ch.isdigit())[-10:]
+        self.assertEqual(duplicate.l10n_cssk_variable_symbol, digits)
+
+    def test_vs_vendor_bill_ref_fills_only_empty(self):
+        bill = self._invoice(move_type="in_invoice", ref="FA-2026/00042")
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
+        # a filled VS is kept when the reference changes
+        bill.ref = "FA-2026/00043"
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
+        # an empty VS is filled from the reference
+        bill.l10n_cssk_variable_symbol = False
+        bill.ref = "FA-2026/00044"
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "202600044")
+
+    def test_vs_vendor_bill_without_ref_filled_later(self):
+        bill = self._invoice(move_type="in_invoice")
+        self.assertFalse(bill.l10n_cssk_variable_symbol)
+        bill.ref = "FA-2026/00042"
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
+
+    def test_vs_kept_when_move_type_changes(self):
+        bill = self._invoice(move_type="in_invoice", ref="FA-2026/00042")
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
+        bill.move_type = "in_refund"
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
+
     def test_refund_vs_policy_own_and_origin(self):
         invoice = self._invoice()
         invoice.action_post()

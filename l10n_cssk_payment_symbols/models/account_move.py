@@ -27,11 +27,21 @@ class AccountMove(models.Model):
     l10n_cssk_variable_symbol = fields.Char(
         string="Variable Symbol",
         compute="_compute_l10n_cssk_variable_symbol",
+        inverse="_inverse_l10n_cssk_variable_symbol",
         store=True,
         readonly=False,
         recursive=True,
+        # A duplicate or a reversal gets its own number, hence its own VS;
+        # a copied value would also be taken for a typed one.
+        copy=False,
         help="Variable symbol — pairs the payment with the "
         "invoice (usually the invoice number, digits only).",
+    )
+    l10n_cssk_variable_symbol_manual = fields.Boolean(
+        string="Variable Symbol Set Manually",
+        copy=False,
+        help="Technical: the variable symbol was typed by a user, so it no "
+        "longer follows the document number.",
     )
     l10n_cssk_constant_symbol = fields.Char(
         string="Constant Symbol",
@@ -47,17 +57,35 @@ class AccountMove(models.Model):
         "(used by insurers, leasing companies …). Optional.",
     )
 
+    # ``move_type`` is deliberately not a dependency: switching the type of a
+    # document must not replace its symbol.
     @api.depends(
         "name",
         "ref",
-        "move_type",
         "reversed_entry_id.l10n_cssk_variable_symbol",
         "company_id.l10n_cssk_refund_vs_policy",
     )
     def _compute_l10n_cssk_variable_symbol(self):
         for move in self:
+            current = move.l10n_cssk_variable_symbol
+            # A typed symbol survives posting (which numbers the document)
+            # and any later renumbering.
+            if current and move.l10n_cssk_variable_symbol_manual:
+                continue
+            # Vendor documents: the supplier's reference fills an empty
+            # symbol once; a filled one is never replaced, neither by a new
+            # reference nor by our own numbering.
+            if current and move.is_purchase_document(include_receipts=True):
+                continue
             move.l10n_cssk_variable_symbol = (
                 move._l10n_cssk_default_variable_symbol()
+            )
+
+    def _inverse_l10n_cssk_variable_symbol(self):
+        # Runs only on an explicit write/create, never on the compute.
+        for move in self:
+            move.l10n_cssk_variable_symbol_manual = bool(
+                move.l10n_cssk_variable_symbol
             )
 
     def _l10n_cssk_default_variable_symbol(self):
