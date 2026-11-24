@@ -50,6 +50,7 @@ class AccountMove(models.Model):
     @api.depends(
         "name",
         "ref",
+        "payment_reference",
         "move_type",
         "reversed_entry_id.l10n_cssk_variable_symbol",
         "company_id.l10n_cssk_refund_vs_policy",
@@ -73,8 +74,12 @@ class AccountMove(models.Model):
                     origin.name
                 )
             return _symbol_digits(self.name)
-        if self.move_type in ("in_invoice", "in_refund", "in_receipt") and self.ref:
-            return _symbol_digits(self.ref)
+        if self.move_type in ("in_invoice", "in_refund", "in_receipt"):
+            # The supplier's payment reference is the VS they asked to be
+            # paid with: a received e-invoice carries it as BT-83 (PaymentID),
+            # often different from the invoice number (BT-1, ``ref``).
+            vs = _symbol_digits(self.payment_reference) or _symbol_digits(self.ref)
+            return vs or False
         return False
 
     @api.depends("move_type", "company_id.l10n_cssk_default_constant_symbol")

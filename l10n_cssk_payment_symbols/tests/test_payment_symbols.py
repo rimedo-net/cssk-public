@@ -41,6 +41,15 @@ class TestPaymentSymbols(AccountTestInvoicingCommon):
         bill = self._invoice(move_type="in_invoice", ref="FA-2026/00042")
         self.assertEqual(bill.l10n_cssk_variable_symbol, "202600042")
 
+    def test_vs_vendor_bill_prefers_payment_reference(self):
+        # A received e-invoice: BT-1 (ref) is the invoice number, BT-83
+        # (payment_reference) the VS the supplier wants to be paid with.
+        bill = self._invoice(move_type="in_invoice", ref="QA-DS-2026-0001")
+        bill.payment_reference = "2026000101"
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "2026000101")
+        bill.payment_reference = "no digits"
+        self.assertEqual(bill.l10n_cssk_variable_symbol, "20260001")
+
     def test_refund_vs_policy_own_and_origin(self):
         invoice = self._invoice()
         invoice.action_post()
