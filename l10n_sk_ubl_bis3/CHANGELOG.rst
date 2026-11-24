@@ -8,6 +8,17 @@ Versioning follows the Odoo manifest (``19.0.x.y.z``); format follows Keep a Cha
 [Unreleased]
 ------------
 
+[18.0.3.3.0] — 2026-11-24
+-------------------------
+
+Added
+~~~~~
+
+* BT-25 / BT-26 on an invoice that cancels a delivered credit note (Odoo
+  reversal of an ``out_refund``): the corrective invoice names the credit note
+  it corrects, as a credit note already names its invoice (§ 71 ods. 2 zákona
+  o DPH).
+
 [18.0.3.2.0] — 2026-11-02
 -------------------------
 

@@ -83,10 +83,18 @@ class AccountEdiXmlUbl_Sk(models.AbstractModel):
         # (§ 71 ods. 2 zákona o DPH; FS SR e-faktúra FAQ, príklad 50: BT-25).
         # 18.0 core fills BillingReference only for Dutch suppliers.
         super()._ubl_add_billing_reference_nodes(vals)
+        # Mirrored for an invoice that cancels a delivered credit note: it is a
+        # corrective document too and names the credit note in BT-25.
         invoice = vals.get('invoice')
-        if not invoice or vals.get('document_type') != 'credit_note':
+        if not invoice:
             return
         origin = invoice.reversed_entry_id
+        if vals.get('document_type') != 'credit_note' and not (
+            invoice.move_type == 'out_invoice'
+            and origin
+            and origin.move_type == 'out_refund'
+        ):
+            return
         if not origin or not origin.name or origin.name == '/':
             return
         nodes = vals['document_node']['cac:BillingReference']
