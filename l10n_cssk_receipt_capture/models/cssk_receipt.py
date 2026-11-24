@@ -168,10 +168,11 @@ class CSSKReceipt(models.Model):
     move_id = fields.Many2one(
         "account.move", string="Vendor bill", readonly=True, copy=False)
 
-    _uid_company_uniq = models.Constraint(
-        "unique(company_id, receipt_uid)",
-        "This receipt has already been captured for this company.",
-    )
+    # Odoo 18: _sql_constraints (models.Constraint is 19.0+)
+    _sql_constraints = [
+        ("uid_company_uniq", "unique(company_id, receipt_uid)",
+         "This receipt has already been captured for this company."),
+    ]
 
     # ------------------------------------------------------------------
     # compute

@@ -42,9 +42,9 @@ class TestExpenseVisibility(AccountTestInvoicingCommon):
         # An employee with NO accounting rights: the person who actually
         # uploads receipts, and who could not, before.
         cls.employee_user = cls.env["res.users"].create({
-            "name": "Plain Employee", "login": "plain.employee@example.com",
+            "name": "Plain Employee", "login": "plain.employee@example.com", "email": "plain.employee@example.com",
             "company_id": cls.company.id, "company_ids": [(6, 0, [cls.company.id])],
-            "group_ids": [(6, 0, [cls.env.ref("base.group_user").id])],
+            "groups_id": [(6, 0, [cls.env.ref("base.group_user").id])],
         })
         cls.employee = cls.env["hr.employee"].sudo().create({
             "name": "Plain Employee", "user_id": cls.employee_user.id,
@@ -57,8 +57,10 @@ class TestExpenseVisibility(AccountTestInvoicingCommon):
             "name": "receipt.jpg", "mimetype": "image/jpeg",
             "datas": base64.b64encode(data), "res_model": "hr.expense", "res_id": 0,
         })
-        return Expense.browse(Expense.create_expense_from_attachments(
-            attachment_ids=attachment.ids))
+        # Odoo 18 returns an act_window, not the ids.
+        action = Expense.create_expense_from_attachments(
+            attachment_ids=attachment.ids)
+        return Expense.browse(action["domain"][0][2])
 
     def _ekasa_ready(self):
         if "cssk.receipt.provider.sk_ekasa" not in self.env:
@@ -162,9 +164,9 @@ class TestExpenseVisibility(AccountTestInvoicingCommon):
     # ------------------------------------------------------------------
     def _other_employee(self):
         user = self.env["res.users"].create({
-            "name": "Colleague", "login": "colleague@example.com",
+            "name": "Colleague", "login": "colleague@example.com", "email": "colleague@example.com",
             "company_id": self.company.id, "company_ids": [(6, 0, [self.company.id])],
-            "group_ids": [(6, 0, [self.env.ref("base.group_user").id])],
+            "groups_id": [(6, 0, [self.env.ref("base.group_user").id])],
         })
         self.env["hr.employee"].sudo().create({
             "name": "Colleague", "user_id": user.id, "company_id": self.company.id})

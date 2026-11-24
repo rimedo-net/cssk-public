@@ -29,10 +29,11 @@ class CSSKReceiptProvider(models.Model):
         help="Restrict this provider to receipts issued in these countries. "
              "Empty means no restriction.")
 
-    _code_uniq = models.Constraint(
-        "unique(code)",
-        "A capture provider with this code already exists.",
-    )
+    # Odoo 18: _sql_constraints (models.Constraint is 19.0+)
+    _sql_constraints = [
+        ("code_uniq", "unique(code)",
+         "A capture provider with this code already exists."),
+    ]
 
     @property
     def _implementation_name(self):

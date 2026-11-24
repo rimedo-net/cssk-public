@@ -114,12 +114,19 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
     # posting: a base and a VAT line per rate
     # ------------------------------------------------------------------
     def _approved(self, expense, payment_mode):
-        self.env.user.group_ids |= self.env.ref(
+        """Odoo 18: an expense is approved and posted through its report.
+
+        Approval creates the report's journal entry (``_do_create_moves``), so
+        a refusal surfaces here rather than at posting as in Odoo 19.
+        """
+        self.env.user.groups_id |= self.env.ref(
             "hr_expense.group_hr_expense_manager")
         expense.payment_mode = payment_mode
-        expense.action_submit()
-        expense.action_approve()
-        return expense
+        sheet = self.env["hr.expense.sheet"].browse(
+            expense.action_submit_expenses()["res_id"])
+        sheet.action_submit_sheet()
+        sheet.action_approve_expense_sheets()
+        return sheet
 
     def _vat_by_rate(self, move):
         lines = move.line_ids
@@ -132,22 +139,20 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
         }
 
     def test_an_employee_paid_expense_posts_each_rate_on_its_own_base(self):
-        expense = self._approved(
+        sheet = self._approved(
             self._restaurant_receipt().action_create_expenses(), "own_account")
-        action = expense.action_post()
-        self.env["hr.expense.post.wizard"].with_context(action["context"]).browse(
-            action["res_id"]).action_post_entry()
-        move = expense.account_move_id
+        sheet.action_sheet_move_post()
+        move = sheet.account_move_ids
         self.assertEqual(move.state, "posted")
         self.assertAlmostEqual(move.amount_total, 181.90, places=2)
         self.assertEqual(self._vat_by_rate(move),
                          {5.0: (124.29, 6.21), 23.0: (41.79, 9.61)})
 
     def test_a_company_paid_expense_posts_each_rate_on_its_own_base(self):
-        expense = self._approved(
+        sheet = self._approved(
             self._restaurant_receipt().action_create_expenses(), "company_account")
-        expense.action_post()
-        move = expense.account_move_id
+        sheet.action_sheet_move_post()
+        move = sheet.account_move_ids
         self.assertEqual(move.state, "posted")
         self.assertEqual(self._vat_by_rate(move),
                          {5.0: (124.29, 6.21), 23.0: (41.79, 9.61)})
@@ -157,9 +162,8 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
         """Its VAT is posted from the receipt; an edited amount cannot be."""
         expense = self._restaurant_receipt().action_create_expenses()
         expense.total_amount_currency = 150.0
-        self._approved(expense, "company_account")
         with self.assertRaisesRegex(UserError, "no longer matches its receipt"):
-            expense.action_post()
+            self._approved(expense, "company_account")
 
     def test_a_tax_excluded_tax_splits_the_gross_too(self):
         """hr.expense reads its amount as tax-included whatever the tax says.
@@ -202,6 +206,10 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
     # ------------------------------------------------------------------
     # the Expenses-app upload path
     # ------------------------------------------------------------------
+    def _expenses(self, action):
+        """Odoo 18 returns an act_window where 19 returns the ids."""
+        return self.env["hr.expense"].search(action["domain"])
+
     def _attachment(self, name="receipt.jpg"):
         return self.env["ir.attachment"].create({
             "name": name,
@@ -212,9 +220,8 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
 
     def test_upload_creates_a_captured_receipt_per_attachment(self):
         attachments = self._attachment("a.jpg") | self._attachment("b.jpg")
-        expense_ids = self.env["hr.expense"].create_expense_from_attachments(
-            attachment_ids=attachments.ids)
-        expenses = self.env["hr.expense"].browse(expense_ids)
+        expenses = self._expenses(self.env["hr.expense"].create_expense_from_attachments(
+            attachment_ids=attachments.ids))
         self.assertEqual(len(expenses), 2)
         self.assertTrue(all(e.cssk_receipt_id for e in expenses))
         self.assertEqual(len(expenses.mapped("cssk_receipt_id")), 2)
@@ -232,16 +239,14 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
     def test_upload_capture_can_be_switched_off(self):
         self.company.cssk_receipt_capture_on_expense_upload = False
         attachment = self._attachment()
-        expense_ids = self.env["hr.expense"].create_expense_from_attachments(
-            attachment_ids=attachment.ids)
-        expense = self.env["hr.expense"].browse(expense_ids)
+        expense = self._expenses(self.env["hr.expense"].create_expense_from_attachments(
+            attachment_ids=attachment.ids))
         self.assertFalse(expense.cssk_receipt_id)
 
     def test_single_rate_capture_fills_the_expense_in_place(self):
         attachment = self._attachment()
-        expense_ids = self.env["hr.expense"].create_expense_from_attachments(
-            attachment_ids=attachment.ids)
-        expense = self.env["hr.expense"].browse(expense_ids)
+        expense = self._expenses(self.env["hr.expense"].create_expense_from_attachments(
+            attachment_ids=attachment.ids))
         receipt = self._fuel_receipt()
         self.assertTrue(expense._cssk_apply_captured_receipt(receipt))
         self.assertAlmostEqual(expense.total_amount_currency, 57.85, places=2)
@@ -255,9 +260,8 @@ class TestReceiptExpense(AccountTestInvoicingCommon):
         """
         self.company.cssk_receipt_capture_on_expense_upload = False
         attachment = self._attachment()
-        expense_ids = self.env["hr.expense"].create_expense_from_attachments(
-            attachment_ids=attachment.ids)
-        expense = self.env["hr.expense"].browse(expense_ids)
+        expense = self._expenses(self.env["hr.expense"].create_expense_from_attachments(
+            attachment_ids=attachment.ids))
         receipt = self._restaurant_receipt()
         expense.cssk_receipt_id = receipt
         self.assertTrue(expense._cssk_apply_captured_receipt(receipt))

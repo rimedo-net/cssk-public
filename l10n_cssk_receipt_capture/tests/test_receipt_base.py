@@ -410,7 +410,8 @@ class TestReceiptCaptureBase(AccountTestInvoicingCommon):
 
     def test_a_longer_number_ending_the_same_way_does_not_match(self):
         """The old suffix match would have collided here."""
-        self.env["res.partner"].create({
+        # Odoo 18: base_vat (pulled in by l10n_sk) rejects this made-up number.
+        self.env["res.partner"].with_context(no_vat_validation=True).create({
             "name": "Unrelated", "is_company": True, "vat": "SK99992077000002",
         })
         receipt = self._fuel_receipt()
@@ -456,7 +457,7 @@ class TestReceiptCaptureBase(AccountTestInvoicingCommon):
         user = self.env["res.users"].create({
             "name": "Billing (test)", "login": "billing-receipts-test",
             "company_id": self.company.id, "company_ids": [Command.set(self.company.ids)],
-            "group_ids": [Command.set([self.env.ref("account.group_account_invoice").id])],
+            "groups_id": [Command.set([self.env.ref("account.group_account_invoice").id])],
         })
         self.assertFalse(user.has_group("account.group_account_user"))
         receipt = self._fuel_receipt()
@@ -477,7 +478,7 @@ class TestReceiptCaptureBase(AccountTestInvoicingCommon):
         employee, colleague = (Users.create({
             "name": name, "login": "%s-receipts-test" % name.lower(),
             "company_id": self.company.id, "company_ids": [Command.set(self.company.ids)],
-            "group_ids": [Command.set([self.env.ref("base.group_user").id])],
+            "groups_id": [Command.set([self.env.ref("base.group_user").id])],
         }) for name in ("Employee", "Colleague"))
         theirs = self.env["cssk.receipt"].with_user(employee).sudo().create({
             "company_id": self.company.id, "currency_id": self.company.currency_id.id})

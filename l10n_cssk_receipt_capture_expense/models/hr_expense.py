@@ -44,17 +44,18 @@ class HrExpense(models.Model):
         employee without access to accounting records. What they see is the
         status and the reason, through the related fields above.
         """
-        expense_ids = super().create_expense_from_attachments(
+        # Odoo 18 returns an act_window, not the list of new expense ids, so
+        # the expenses are found through the attachments it re-linked to them.
+        result = super().create_expense_from_attachments(
             attachment_ids=attachment_ids, view_type=view_type)
         if not self.env.company.cssk_receipt_capture_on_expense_upload:
-            return expense_ids
+            return result
         outcomes = {"captured": 0, "review": 0, "error": 0, "new": 0}
-        for expense in self.browse(expense_ids if isinstance(expense_ids, list) else []):
-            attachment = self.env["ir.attachment"].sudo().search(
-                [("res_model", "=", "hr.expense"), ("res_id", "=", expense.id)],
-                limit=1)
-            if not attachment:
+        attachments = self.env["ir.attachment"].sudo().browse(attachment_ids or [])
+        for attachment in attachments:
+            if attachment.res_model != "hr.expense" or not attachment.res_id:
                 continue
+            expense = self.browse(attachment.res_id)
             receipt = self.env["cssk.receipt"].sudo()._create_from_attachment(
                 attachment, {"company_id": expense.company_id.id})
             expense.cssk_receipt_id = receipt.id
@@ -73,7 +74,7 @@ class HrExpense(models.Model):
             expense._cssk_post_reading_result(receipt)
             outcomes[receipt.state if receipt.state in outcomes else "error"] += 1
         self._cssk_notify_upload(outcomes)
-        return expense_ids
+        return result
 
     def _cssk_post_reading_result(self, receipt):
         """Say on the expense what the reading did — failures above all."""
@@ -231,39 +232,17 @@ class HrExpense(models.Model):
                 expense.tax_amount_currency * expense.currency_rate)
             expense.untaxed_amount = expense.total_amount - expense.tax_amount
 
-    def action_post(self):
+    def _cssk_check_all_parts(self):
+        """Refuse expenses edited away from their multi-rate receipt.
+
+        Odoo 19 posts expenses one by one (``hr.expense.action_post``); Odoo 18
+        posts the expense report, so the sheet calls this before it creates
+        any journal entry.
+        """
         for expense in self:
             parts = expense._cssk_rate_parts()
             if parts:
                 expense._cssk_check_parts(parts)
-        return super().action_post()
-
-    def _prepare_receipts_vals(self):
-        """Employee-paid: the vendor receipt carries one line per VAT rate.
-
-        Each line keeps ``expense_id``, so ``hr_expense`` still treats its
-        amount as tax-included, and the receipt's partner, account, analytic
-        and product are those Odoo chose for the expense's single line.
-        """
-        vals_list = super()._prepare_receipts_vals()
-        for vals in vals_list:
-            lines = []
-            for command in vals.get("line_ids", []):
-                line = command[2] if len(command) > 2 and isinstance(command[2], dict) else {}
-                expense = self.browse(line.get("expense_id")) if line.get("expense_id") else None
-                parts = expense._cssk_rate_parts() if expense else None
-                if not parts:
-                    lines.append(command)
-                    continue
-                expense._cssk_check_parts(parts)
-                for (_gross, tax, rate), amount in zip(
-                        parts, expense._cssk_company_amounts(parts)):
-                    lines.append(Command.create(dict(
-                        line, quantity=1, price_unit=amount,
-                        tax_ids=[Command.set(tax.ids)],
-                        name="%s (%g %%)" % (line.get("name") or "", rate))))
-            vals["line_ids"] = lines
-        return vals_list
 
     def _prepare_payments_vals(self):
         """Company-paid: the payment entry carries a base and a VAT line per rate.
@@ -288,7 +267,8 @@ class HrExpense(models.Model):
         AccountTax._add_tax_details_in_base_lines(base_lines, self.company_id)
         AccountTax._round_base_lines_tax_details(base_lines, self.company_id)
         AccountTax._add_accounting_data_in_base_lines_tax_details(
-            base_lines, self.company_id, include_caba_tags=True)
+            base_lines, self.company_id,
+            include_caba_tags=self.payment_mode == "company_account")
         tax_results = AccountTax._prepare_tax_lines(base_lines, self.company_id)
 
         base_move_lines, move_lines = [], []
@@ -318,7 +298,8 @@ class HrExpense(models.Model):
             - sum(line["balance"] for line in base_move_lines))
         move_lines.append({
             "name": self._get_move_line_name(),
-            "account_id": self._get_expense_account_destination(),
+            # Odoo 18: the destination account lives on the expense report.
+            "account_id": self.sheet_id._get_expense_account_destination(),
             "balance": -self.total_amount,
             "amount_currency": self.currency_id.round(-self.total_amount_currency),
             "currency_id": self.currency_id.id,

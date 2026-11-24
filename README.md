@@ -34,9 +34,35 @@ expect 19.0's "0% EU services" sale tax, which the 18.0 SK chart lacks.
 Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
 `migrations/19.0.*` never run on 18.0 versions.
 
+### Receipt capture (branch `odoo18-port/receipt-capture`)
+
+`l10n_cssk_receipt_capture`, `l10n_cssk_receipt_capture_expense` and
+`l10n_sk_ekasa_receipt` are added from the 19.0 suite (cssk-public-mercor
+`4508b2be`) and ported to 18.0 — 140 of 140 tests pass on 18.0 with `l10n_sk`
+and `hr_expense`. What the port changes:
+
+- manifests `18.0.x`; `_sql_constraints` instead of `models.Constraint`;
+  the 19.0 `migrations/` of `l10n_cssk_receipt_capture` dropped;
+- `l10n_cssk_receipt_capture_expense`: Odoo 18 posts expenses through
+  `hr.expense.sheet`, so the per-VAT-rate split of the employee-paid bill moves
+  from `hr.expense._prepare_receipts_vals` (19.0) to
+  `hr.expense.sheet._prepare_bills_vals`, the "edited away from its receipt"
+  check from `hr.expense.action_post` to `hr.expense.sheet._do_create_moves`
+  (i.e. at approval); the company-paid entry takes its destination account
+  from the sheet; `create_expense_from_attachments` returns an action in 18.0,
+  so the uploaded expenses are found through their attachments; the 18.0
+  expense form has no button box, the view adds one;
+- tests: `groups_id`, expense report flow, users with an e-mail (18.0 refuses
+  to post a message without one), `no_vat_validation` for a made-up VAT.
+
+`l10n_cssk_receipt_capture_ai` (the LLM photo reader) is not part of the
+suite; rimedo's `rdo_receipt_capture_claude` (rimedo addons) is a capture
+provider on top of `rdo_bill_ocr_claude` instead. `l10n_sk_ekasa_receipt`
+needs the Python package `zxing-cpp`.
+
 ## Modules
 
-13 modules, licensed `AGPL-3`. Versions are the `19.0` manifests, except `edi_ipostar_peppol` (18.0 only).
+16 modules, licensed `AGPL-3`. Versions are the `19.0` manifests, except `edi_ipostar_peppol` (18.0 only).
 
 ### Slovak invoice
 
@@ -59,6 +85,14 @@ Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
 | `edi_epostak_peppol` | 19.0.1.0.0 | Peppol BIS 3.0 through the ePošťák access point. |
 | `edi_ipostar_peppol` | 18.0.1.0.0 | Peppol BIS 3.0 through the iPoštár access point (rimedo, not from the Data Dance source). |
 
+### Fiscal receipt capture (bločky)
+
+| Module | Version | What it does |
+|---|---|---|
+| `l10n_cssk_receipt_capture` | 18.0.1.1.1 | Captured receipt (lines, VAT recap), provider registry, reconciliation gates, vendor-receipt sink, camera QR scan. |
+| `l10n_cssk_receipt_capture_expense` | 18.0.1.1.1 | Receipt → one `hr.expense` (per-rate VAT on the posted entry), capture on Expenses upload / scan. |
+| `l10n_sk_ekasa_receipt` | 18.0.1.1.2 | eKasa QR → registered receipt from Finančná správa (§ 18 ods. 11 declaration, hourly budget). Needs `zxing-cpp`. |
+
 ### Sale-order advance invoices
 
 | Module | Version | What it does |
@@ -68,6 +102,8 @@ Not touched: `sale_order_advance_invoice`, `l10n_sk_sale_order_advance_invoice`.
 
 ## Requirements outside this repository
 
-Odoo: `account`, `mail`, `l10n_sk`, `account_edi_ubl_cii`, `sale`, `sale_management`, `account_payment`.
+Odoo: `account`, `mail`, `l10n_sk`, `account_edi_ubl_cii`, `sale`, `sale_management`, `account_payment`, `hr_expense` (receipt expense sink).
 
 OCA: `account_add_gln` (dependency of `edi_base`).
+
+Python: `requests`, `zxing-cpp` (`l10n_sk_ekasa_receipt`; QR decoding of receipt photos).
