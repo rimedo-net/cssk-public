@@ -21,7 +21,7 @@ Module facts
 ============
 
 - **Technical name:** ``l10n_cssk_receipt_capture_expense``
-- **Version:** 19.0.1.1.1
+- **Version:** 18.0.1.1.1 (Odoo 18.0 port of 19.0.1.1.1)
 - **Edition:** Community and Enterprise
 - **Licence:** AGPL-3
 - **Requires:** ``l10n_cssk_receipt_capture``, ``hr_expense``
@@ -32,6 +32,52 @@ Documentation
 - `English <https://data-dance.github.io/cssk-public/l10n_cssk_receipt_capture_expense/static/description/index.html>`__
 - `Slovenčina <https://data-dance.github.io/cssk-public/l10n_cssk_receipt_capture_expense/static/description/index_sk.html>`__
 - `Čeština <https://data-dance.github.io/cssk-public/l10n_cssk_receipt_capture_expense/static/description/index_cs.html>`__
+
+Odoo 18.0 port
+==============
+
+Odoo 18 still has expense reports (``hr.expense.sheet``), which 19.0 removed:
+
+- the per-rate VAT split for *Paid by employee* is built in
+  ``hr.expense.sheet._prepare_bills_vals``; the "expense no longer matches its
+  receipt" check runs in ``hr.expense.sheet._do_create_moves`` – in 18.0
+  journal entries are created when the **report is approved/posted**, not on
+  ``action_post``;
+- *Paid by company*: the destination account comes from the report; the
+  company needs a default *outstanding account* for expenses and that account
+  must be reconcilable to match the card payment on the bank statement;
+- ``create_expense_from_attachments`` returns an action in 18.0, the
+  expenses are found through their attachments;
+- the expense form gets a ``button_box`` added by this module.
+
+Installation
+============
+
+::
+
+    docker compose run --rm odoo odoo -d <db> --stop-after-init -i \
+      hr_expense,l10n_cssk_receipt_capture,l10n_cssk_receipt_capture_expense,l10n_sk_ekasa_receipt
+
+Usage
+=====
+
+#. Employee: *Expenses ▸ My Expenses ▸ Scan Receipt* (camera, HTTPS or
+   localhost) or *Upload* a photo in *My Expenses*.
+#. The receipt is read; a clean reading fills the expense (amount, taxes,
+   vendor), otherwise the expense shows why.
+#. Submit the expense report; the manager approves it and posts the entries.
+#. *Paid by company*: reconcile the bank line of the card payment with the
+   expense payment manually (there is no VS on card payments).
+
+Slovensky (stručne)
+===================
+
+Úplný slovenský popis je v ``doc/sk.md``. Zamestnanec naskenuje QR kód
+bločku (*Výdavky ▸ Moje výdaje ▸ Naskenovať bloček*) alebo nahrá fotku; vznikne
+jeden výdavok za celý bloček s DPH rozpísanou podľa sadzieb. Výkaz výdavkov
+schváli nadriadený a účtovník zaúčtuje. Nastavenia: *Výdavky ▸ Konfigurácia ▸
+Nastavenia ▸ Receipt Capture*. Obmedzenia: platba firemnou kartou sa
+s bankovým pohybom páruje ručne; bloček nad 400 € ide bez odpočtu DPH.
 
 Credits
 =======

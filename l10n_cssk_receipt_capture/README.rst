@@ -190,7 +190,7 @@ Module facts
 ============
 
 - **Technical name:** ``l10n_cssk_receipt_capture``
-- **Version:** 19.0.1.1.1
+- **Version:** 18.0.1.1.1 (Odoo 18.0 port of 19.0.1.1.1)
 - **Edition:** Community and Enterprise
 - **Licence:** AGPL-3
 - **Requires:** ``account``, ``mail``, ``l10n_cssk_core``
@@ -201,6 +201,38 @@ Documentation
 - `English <https://data-dance.github.io/cssk-public/l10n_cssk_receipt_capture/static/description/index.html>`__
 - `Slovenčina <https://data-dance.github.io/cssk-public/l10n_cssk_receipt_capture/static/description/index_sk.html>`__
 - `Čeština <https://data-dance.github.io/cssk-public/l10n_cssk_receipt_capture/static/description/index_cs.html>`__
+
+Odoo 18.0 port
+==============
+
+This branch carries an Odoo 18.0 port of the 19.0 module (rimedo QA,
+``qa/reports/02-receipt-port.md``):
+
+- ``_sql_constraints`` instead of ``models.Constraint``; the 19.0 migration is dropped.
+- The camera scanner (``scanBarcode``) has the same API in 18.0 – unchanged.
+- ``l10n_cssk_receipt_capture_ai`` does not exist in this repository. In the
+  rimedo deployment the AI reader is ``rdo_receipt_capture_claude``
+  (rimedo/rdo_general), a provider using Claude with sequence 50, after the
+  eKasa lookup (10). The *Receipts: AI Model Chain* setting does not apply to it.
+- Python ``zxing-cpp`` is needed to read QR codes from photographs.
+
+Slovensky (stručne)
+===================
+
+Úplný slovenský popis je v ``doc/sk.md``. V skratke: modul zachytí pokladničný
+doklad (bloček) z QR kódu, fotky alebo nahratia vo Výdavkoch, skontroluje
+súčty a DPH po sadzbách a vytvorí z neho koncept nákupnej účtenky alebo
+(s ``l10n_cssk_receipt_capture_expense``) výdavok zamestnanca.
+
+- **Menu:** *Fakturácia ▸ Dodávatelia ▸ Pokladničné doklady* (Naskenovať
+  bloček, Zachytené doklady, Na kontrolu); zamestnanci *Výdavky ▸ Moje výdaje
+  ▸ Naskenovať bloček / Moje bločky*.
+- **Nastavenie:** *Nastavenia ▸ Fakturácia ▸ Fiscal Receipt Capture* –
+  denník, predvolený nákladový účet (povinný), detail dokladu.
+- **Stavy:** Nový → Zachytený / Na kontrolu / Chyba → Zaúčtovaný.
+- **Obmedzenia:** pozri *Limitations*; navyše čítanie beží synchrónne,
+  duplicita sa stráži len podľa ID dokladu eKasa, automatické párovanie
+  platby kartou na bloček neexistuje.
 
 Credits
 =======

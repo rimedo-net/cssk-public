@@ -133,7 +133,7 @@ Module facts
 ============
 
 - **Technical name:** ``l10n_sk_ekasa_receipt``
-- **Version:** 19.0.1.1.2
+- **Version:** 18.0.1.1.2 (Odoo 18.0 port of 19.0.1.1.2)
 - **Edition:** Community and Enterprise
 - **Licence:** AGPL-3
 - **Requires:** ``l10n_cssk_receipt_capture``
@@ -143,6 +143,31 @@ Documentation
 
 - `English <https://data-dance.github.io/cssk-public/l10n_sk_ekasa_receipt/static/description/index.html>`__
 - `Slovenčina <https://data-dance.github.io/cssk-public/l10n_sk_ekasa_receipt/static/description/index_sk.html>`__
+
+Odoo 18.0 port
+==============
+
+Only the manifest version changed (the code is 18.0-compatible). The hard
+Python dependency ``zxing-cpp`` must be present in the Odoo image, otherwise
+the module does not install. A partner created from a receipt
+(**Create Seller**) now also keeps the seller's DIČ.
+
+Slovensky (stručne)
+===================
+
+Úplný slovenský popis je v ``doc/sk.md``. Modul overí bloček so slovenským
+QR kódom v systéme eKasa Finančnej správy a vyplní doklad údajmi, ktoré
+predajca zaregistroval (položky, DPH po sadzbách, IČO/DIČ/IČ DPH).
+
+- **Zapnutie:** *Nastavenia ▸ Fakturácia ▸ Slovak eKasa Receipt Lookup* –
+  *Enable eKasa Lookup* a **až po oznámení IP adresy servera Finančnému
+  riaditeľstvu** zaškrtnúť *IP Address Notified (§ 18/11)*. Bez toho je
+  každé overenie odmietnuté.
+- **Limit:** cca 60 overení za hodinu na IP adresu (*Hourly Lookup Budget*).
+- **Záznam:** *Fakturácia ▸ Dodávatelia ▸ Pokladničné doklady ▸ Záznam
+  overení eKasa*.
+- **Obmedzenia:** povinnosť posielať výsledky overení FS nie je
+  implementovaná; v rimedo QA overovanie naživo netestované (chýba oznámenie IP).
 
 Credits
 =======
