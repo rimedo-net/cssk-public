@@ -4,11 +4,13 @@
 import base64
 import io
 import json
+from datetime import date, timedelta
 from unittest.mock import patch
 from xml.etree import ElementTree
 
 from reportlab.pdfgen import canvas
 
+from odoo import fields
 from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
 
@@ -203,3 +205,153 @@ class TestIpostar(TransactionCase):
         self.assertEqual(move._peppol_provider(), "ipostar")
         ICP.set_param("peppol.transport", "")
         self.assertTrue(move._peppol_provider())
+
+
+@tagged("post_install", "-at_install")
+class TestIpostarInboxPaging(TransactionCase):
+    """H3: nothing received may be lost to an outage or a busy period."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.ICP = cls.env["ir.config_parameter"].sudo()
+        cls.ICP.set_param("ipostar.api_key", "ipk_test")
+        cls.ICP.set_param("ipostar.inbound.last_success", False)
+        cls.connector = cls.env["ipostar.connector"]
+
+    def _inbox(self, docs, fail_ids=()):
+        """Fake API over ``docs`` = {id: date}; honours from/to/limit, with
+        ``to`` exclusive. Records every listing call."""
+        calls = []
+
+        def fake(method, url, params=None, **kw):
+            if url.endswith("/inbox"):
+                calls.append(dict(params))
+                since = date.fromisoformat(params["from"])
+                until = date.fromisoformat(params["to"]) if "to" in params else None
+                rows = [
+                    {"id": doc_id} for doc_id, day in sorted(docs.items())
+                    if day >= since and (until is None or day < until)
+                ]
+                return FakeResponse(200, {"documents": rows[:params["limit"]]})
+            doc_id = url.split("/inbox/")[1].split("/")[0]
+            if doc_id in fail_ids:
+                return FakeResponse(503, {"error": "busy"})
+            return FakeResponse(200, content=(UBL % ("FA-" + doc_id)).encode())
+
+        return fake, calls
+
+    def _poll(self, fake):
+        state = {}
+        with patch(TARGET, side_effect=fake):
+            result = self.connector.with_context(
+                ipostar_poll_state=state)._poll_inbound()
+        return result, state
+
+    def _store(self, result):
+        """What edi_base does with the returned packages."""
+        for pkg in result["messages"]:
+            self.env["edi.message"].create({
+                "provider": "ipostar", "direction": "in", "state": "received",
+                "name": pkg["name"], "provider_interchange_id": pkg["raw_id"],
+            })
+
+    def _last_success(self):
+        return self.ICP.get_param("ipostar.inbound.last_success")
+
+    def test_first_poll_reads_the_look_back_and_sets_the_mark(self):
+        today = fields.Date.context_today(self.connector)
+        fake, calls = self._inbox({"1": today})
+        result, state = self._poll(fake)
+        self.assertEqual(calls[0]["from"], (today - timedelta(days=7)).isoformat())
+        self._store(result)
+        self.connector._finish_inbound_poll(state)
+        self.assertTrue(self._last_success())
+        self.assertIn("OK", self.ICP.get_param("ipostar.inbound.last_result"))
+
+    def test_after_a_long_outage_it_reads_from_the_last_success(self):
+        today = fields.Date.context_today(self.connector)
+        last = fields.Datetime.now() - timedelta(days=30)
+        self.ICP.set_param("ipostar.inbound.last_success",
+                           fields.Datetime.to_string(last))
+        old = today - timedelta(days=20)
+        fake, calls = self._inbox({"5": old})
+        result, state = self._poll(fake)
+        self.assertEqual(calls[0]["from"], (last.date() - timedelta(days=1)).isoformat())
+        self.assertEqual([m["raw_id"] for m in result["messages"]], ["5"],
+                         "20 days old, outside the old 7-day window")
+
+    def test_a_full_page_is_split_until_everything_is_listed(self):
+        today = fields.Date.context_today(self.connector)
+        docs = {}
+        for n in range(450):  # 150 a day over three days
+            docs[str(1000 + n)] = today - timedelta(days=n % 3)
+        self.ICP.set_param("ipostar.inbound.lookback_days", 7)
+        fake, calls = self._inbox(docs)
+        result, state = self._poll(fake)
+        self.assertGreater(len(calls), 1, "a full page must be split")
+        self.assertTrue(state["truncated"], "450 new > 200 per run")
+        self.assertTrue(result["has_more"])
+        self.assertEqual(state["listed"], 450)
+        self.assertEqual(len(result["messages"]), 200)
+        self._store(result)
+        self.connector._finish_inbound_poll(state)
+        self.assertFalse(self._last_success(), "not everything fetched yet")
+        # The re-triggered runs fetch the rest; then the mark moves.
+        for _run in range(2):
+            result, state = self._poll(fake)
+            self._store(result)
+            self.connector._finish_inbound_poll(state)
+        self.assertEqual(
+            self.env["edi.message"].search_count([
+                ("provider", "=", "ipostar"), ("direction", "=", "in")]),
+            450,
+        )
+        self.assertTrue(self._last_success())
+
+    def test_a_download_failure_keeps_the_mark(self):
+        today = fields.Date.context_today(self.connector)
+        before = fields.Datetime.to_string(fields.Datetime.now() - timedelta(days=3))
+        self.ICP.set_param("ipostar.inbound.last_success", before)
+        fake, _calls = self._inbox({"1": today, "2": today}, fail_ids=("2",))
+        result, state = self._poll(fake)
+        self.assertEqual([m["raw_id"] for m in result["messages"]], ["1"])
+        self._store(result)
+        self.connector._finish_inbound_poll(state)
+        self.assertEqual(self._last_success(), before)
+        self.assertIn("INCOMPLETE", self.ICP.get_param("ipostar.inbound.last_result"))
+
+    def test_a_document_not_stored_keeps_the_mark(self):
+        today = fields.Date.context_today(self.connector)
+        fake, _calls = self._inbox({"1": today})
+        result, state = self._poll(fake)
+        self.connector._finish_inbound_poll(state)  # edi_base stored nothing
+        self.assertFalse(self._last_success())
+
+    def test_a_single_full_day_is_reported_incomplete(self):
+        today = fields.Date.context_today(self.connector)
+        fake, _calls = self._inbox({str(n): today for n in range(200)})
+        self.ICP.set_param("ipostar.inbound.lookback_days", 1)
+        result, state = self._poll(fake)
+        self.assertFalse(state["complete"])
+        self._store(result)
+        self.connector._finish_inbound_poll(state)
+        self.assertFalse(self._last_success())
+        self.assertIn("INCOMPLETE", self.ICP.get_param("ipostar.inbound.last_result"))
+
+    def test_a_listing_error_is_reported(self):
+        def fake(method, url, **kw):
+            return FakeResponse(500, {"error": "down"})
+
+        result, state = self._poll(fake)
+        self.assertEqual(result["messages"], [])
+        self.connector._finish_inbound_poll(state)
+        self.assertIn("listing failed", self.ICP.get_param("ipostar.inbound.last_result"))
+
+    def test_settings_show_the_mark(self):
+        self.ICP.set_param("ipostar.inbound.last_success", "2026-11-20 08:00:00")
+        self.ICP.set_param("ipostar.inbound.last_result", "x UTC – OK")
+        settings = self.env["res.config.settings"].create({})
+        self.assertEqual(fields.Datetime.to_string(
+            settings.ipostar_inbound_last_success), "2026-11-20 08:00:00")
+        self.assertEqual(settings.ipostar_inbound_last_result, "x UTC – OK")

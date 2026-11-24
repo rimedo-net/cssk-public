@@ -19,11 +19,26 @@ class ResConfigSettings(models.TransientModel):
         default="https://ipostar.app/api/v1",
     )
     ipostar_lookback_days = fields.Integer(
-        string="Inbox look-back (days)",
+        string="First poll look-back (days)",
         config_parameter="ipostar.inbound.lookback_days",
         default=7,
-        help="Each inbound poll re-reads this many days of the iPoštár inbox "
-        "and skips documents already stored.",
+        help="How far back the very first poll reads the iPoštár inbox, or any "
+        "poll after \"Last successful poll\" has been cleared. Later polls "
+        "read from the last successful poll.",
+    )
+    ipostar_inbound_last_success = fields.Datetime(
+        string="Last successful poll",
+        config_parameter="ipostar.inbound.last_success",
+        help="When a poll last saw the whole inbox and stored every new "
+        "document. The next poll reads from one day before this, however long "
+        "ago it was, so an outage loses nothing. Set it earlier to read an "
+        "older period again; documents already in Odoo are skipped.",
+    )
+    ipostar_inbound_last_result = fields.Char(
+        string="Last poll",
+        compute="_compute_ipostar_inbound_last_result",
+        help="Outcome of the most recent inbound poll. INCOMPLETE means some "
+        "documents were not stored; the same period is read again next time.",
     )
     # Same definition as edi_epostak_peppol, so either module can show it.
     peppol_transport = fields.Selection(
@@ -32,6 +47,14 @@ class ResConfigSettings(models.TransientModel):
         config_parameter="peppol.transport",
         help="Which installed EDI provider carries Peppol documents.",
     )
+
+    def _compute_ipostar_inbound_last_result(self):
+        # Not a config_parameter field: saving the settings would write the
+        # value loaded with the form back over a newer one.
+        value = self.env["ir.config_parameter"].sudo().get_param(
+            "ipostar.inbound.last_result") or False
+        for settings in self:
+            settings.ipostar_inbound_last_result = value
 
     @api.model
     def _selection_peppol_transport(self):

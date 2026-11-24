@@ -12,6 +12,7 @@ from xml.etree import ElementTree
 from zoneinfo import ZoneInfo
 
 from odoo import _, api, fields, models
+from odoo.modules import module as odoo_module
 
 from ..exceptions import RetryableJobError
 from odoo.exceptions import UserError
@@ -187,6 +188,7 @@ class EdiMessage(models.Model):
             ("draft", "Draft"),
             ("ready", "Ready"),
             ("queued", "Queued"),
+            ("sending", "Sending"),
             ("sent", "Sent"),
             ("received", "Received"),
             ("error", "Error"),
@@ -215,6 +217,16 @@ class EdiMessage(models.Model):
     # populated from the ``job_edi_message_id`` context passed by
     # _enqueue_send), along with the queue_job_ids One2many on this model
     # and the "Queue Jobs" / "Open EDI Message" navigation buttons.
+
+    send_started_at = fields.Datetime(
+        string="Sending Started",
+        readonly=True,
+        copy=False,
+        help="Set while a send is in flight, cleared once its outcome is "
+        "known. A message that is in error and still has this set was "
+        "interrupted mid-send: it is not known whether the document reached "
+        "the access point.",
+    )
 
     partner_id = fields.Many2one("res.partner", string="Partner")
     company_id = fields.Many2one(
@@ -1178,6 +1190,7 @@ class EdiMessage(models.Model):
                 "state": "queued",
                 "error_message": False,
                 "blocking_level": False,
+                "send_started_at": False,
             }
         )
         self._post_dispatch_trace()
@@ -1209,6 +1222,71 @@ class EdiMessage(models.Model):
         """
         return connector._acknowledge_inbound(raw_id)
 
+    #: A message still ``sending`` after this long was cut off mid-send (the
+    #: worker died or timed out between the HTTP call and the commit).
+    SENDING_STALE_MINUTES = 15
+
+    def _edi_commit(self):
+        """Make what the send cron did so far durable.
+
+        Skipped under tests: a test cursor cannot be committed, and the tests
+        check the states, which are the same either way.
+        """
+        if not odoo_module.current_test:
+            self.env.cr.commit()
+
+    def _claim_for_sending(self):
+        """Move one ``queued`` message to ``sending``; False if it is not
+        ``queued`` any more or another worker holds it."""
+        self.ensure_one()
+        self.env.cr.execute(
+            "SELECT id FROM edi_message WHERE id = %s AND state = 'queued' "
+            "FOR UPDATE SKIP LOCKED",
+            (self.id,),
+        )
+        if not self.env.cr.fetchone():
+            return False
+        self.invalidate_recordset(["state"])
+        self.write({"state": "sending", "send_started_at": fields.Datetime.now()})
+        return True
+
+    @api.model
+    def _fail_stale_sending(self, providers):
+        """A send that never reported back: its outcome is unknown.
+
+        Never re-queued automatically — the document may well have left, and
+        sending it again would deliver it twice. It becomes an error, and keeps
+        ``send_started_at``, so the business document stays locked until
+        someone checks with the provider.
+        """
+        limit = fields.Datetime.now() - datetime.timedelta(
+            minutes=self.SENDING_STALE_MINUTES
+        )
+        stale = self.search([
+            ("state", "=", "sending"),
+            ("direction", "=", "out"),
+            ("provider", "in", providers),
+            ("send_started_at", "<", limit),
+        ])
+        for message in stale:
+            _logger.warning(
+                "EDI send of %s was interrupted at %s; outcome unknown",
+                message.name, message.send_started_at,
+            )
+            message.write({
+                "state": "error",
+                "blocking_level": "error",
+                "error_message": _(
+                    "Sending was interrupted (started %(started)s UTC) and it is "
+                    "not known whether the document reached the access point. "
+                    "Check the provider's portal: if the document is there, do "
+                    "NOT send it again; if it is not, use Send.",
+                    started=message.send_started_at,
+                ),
+            })
+        if stale:
+            self._edi_commit()
+
     @api.model
     def _cron_send_queued(self, limit=100):
         """Send what is ``queued`` for the providers that asked for a cron.
@@ -1217,13 +1295,12 @@ class EdiMessage(models.Model):
         by job must never appear here, or a message would be sent twice — once
         by its job and once by this.
 
-        Note the outcome is written with a plain ``write``, not
-        ``_write_outside_job``. That helper exists because a job runner rolls
-        the cursor back around a raising job, so the outcome has to be written
-        on a cursor it cannot reach. Here nothing rolls back: the savepoint
-        around the send is released, this transaction is intact, and a write on
-        a separate cursor could not even see a row this transaction has not
-        committed.
+        Each message is committed twice: as ``sending`` before it leaves, and
+        with its outcome right after. A worker that dies or times out half-way
+        through a run therefore never rolls back documents that already left
+        (which the next run would send again); at most the one in flight is
+        left ``sending``, and :meth:`_fail_stale_sending` hands that to a human
+        instead of guessing.
         """
         providers = [
             provider for provider, mode in self.PROVIDER_DISPATCH_MAP.items()
@@ -1231,12 +1308,16 @@ class EdiMessage(models.Model):
         ]
         if not providers:
             return
+        self._fail_stale_sending(providers)
         messages = self.search([
             ("state", "=", "queued"),
             ("direction", "=", "out"),
             ("provider", "in", providers),
         ], limit=limit, order="id")
         for message in messages:
+            if not message._claim_for_sending():
+                continue
+            self._edi_commit()
             connector = self.env[message._get_connector_name()]
             if message.company_id:
                 connector = connector.with_company(message.company_id)
@@ -1246,6 +1327,7 @@ class EdiMessage(models.Model):
                 # on that message rather than in a traceback nobody reads.
                 with self.env.cr.savepoint():
                     connector._send_message(message)
+                message.write({"send_started_at": False})
             except RetryableJobError as exception:
                 # The same signal a job runner acts on, honoured the same way:
                 # leave it queued and let the next tick try again. Losing this
@@ -1254,6 +1336,8 @@ class EdiMessage(models.Model):
                 _logger.info("EDI cron send deferred for %s: %s",
                              message.name, exception)
                 message.write({
+                    "state": "queued",
+                    "send_started_at": False,
                     "error_message": str(exception),
                     "blocking_level": "warning",
                 })
@@ -1261,8 +1345,10 @@ class EdiMessage(models.Model):
                 _logger.exception("EDI cron send failed for %s", message.name)
                 message.write({
                     "state": "error",
+                    "send_started_at": False,
                     "error_message": str(exception),
                 })
+            self._edi_commit()
 
     def _edi_related_documents(self):
         """Business documents this message should leave a chatter trace on.

@@ -7,8 +7,10 @@ never touched by the cron, because on a database carrying both a message picked
 up twice is a document sent twice.
 """
 
+from datetime import timedelta
 from unittest.mock import patch
 
+from odoo import fields
 from odoo.tests.common import TransactionCase
 
 from odoo.addons.edi_base.exceptions import RetryableJobError
@@ -118,6 +120,90 @@ class TestCronScope(DispatchCase):
         message.invalidate_recordset()
         self.assertEqual(message.state, "error")
         self.assertIn("never be accepted", message.error_message)
+
+
+class TestCronSendDurability(DispatchCase):
+    """A run cut off half-way must not send its documents a second time."""
+
+    PATCH = ("odoo.addons.edi_base.models.edi_connector_mixin"
+             ".EdiConnectorMixin._send_message")
+
+    def test_the_message_is_sending_while_it_leaves(self):
+        message = self._message("t_cron")
+        seen = []
+
+        def fake_send(self_, record):
+            seen.append((record.state, bool(record.send_started_at)))
+            record.write({"state": "sent"})
+            return True
+
+        with patch(self.PATCH, fake_send, create=True):
+            self.Message._cron_send_queued()
+
+        self.assertEqual(seen, [("sending", True)])
+        message.invalidate_recordset()
+        self.assertEqual(message.state, "sent")
+        self.assertFalse(message.send_started_at, "outcome known: cleared")
+
+    def test_a_retryable_failure_clears_the_claim(self):
+        message = self._message("t_cron")
+
+        def fake_send(self_, record):
+            raise RetryableJobError("busy")
+
+        with patch(self.PATCH, fake_send, create=True):
+            self.Message._cron_send_queued()
+
+        message.invalidate_recordset()
+        self.assertEqual(message.state, "queued")
+        self.assertFalse(message.send_started_at)
+
+    def test_a_message_already_sending_is_not_sent_again(self):
+        """What a crashed run leaves behind is never picked up as queued."""
+        message = self._message("t_cron")
+        message.write({"state": "sending",
+                       "send_started_at": fields.Datetime.now()})
+        sent = []
+
+        def fake_send(self_, record):
+            sent.append(record.id)
+            return True
+
+        with patch(self.PATCH, fake_send, create=True):
+            self.Message._cron_send_queued()
+
+        self.assertEqual(sent, [])
+        self.assertEqual(message.state, "sending", "not stale yet")
+
+    def test_an_interrupted_send_goes_to_a_human(self):
+        message = self._message("t_cron")
+        started = fields.Datetime.now() - timedelta(
+            minutes=self.Message.SENDING_STALE_MINUTES + 1)
+        message.write({"state": "sending", "send_started_at": started})
+        sent = []
+
+        def fake_send(self_, record):
+            sent.append(record.id)
+            return True
+
+        with patch(self.PATCH, fake_send, create=True):
+            self.Message._cron_send_queued()
+
+        message.invalidate_recordset()
+        self.assertEqual(sent, [], "outcome unknown: never re-sent by itself")
+        self.assertEqual(message.state, "error")
+        self.assertEqual(message.send_started_at, started,
+                         "kept, so the document stays locked")
+        self.assertIn("do NOT send it again", message.error_message)
+
+    def test_send_clears_the_unknown_outcome(self):
+        """Someone checked the portal and sends again on purpose."""
+        message = self._message("t_cron")
+        message.write({"state": "error",
+                       "send_started_at": fields.Datetime.now()})
+        message.action_send()
+        self.assertEqual(message.state, "queued")
+        self.assertFalse(message.send_started_at)
 
 
 class TestExceptionShim(TransactionCase):

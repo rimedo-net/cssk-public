@@ -5,7 +5,7 @@
     "name": "iPoštár EDI: Peppol BIS 3.0",
     "summary": "Send and receive Peppol BIS Billing 3.0 through the iPoštár "
     "access point (ipostar.app REST API)",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Accounting/Localizations",
     "author": "Rimedo, s.r.o.",
     "website": "https://rimedo.net",

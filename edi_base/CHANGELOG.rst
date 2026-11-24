@@ -5,6 +5,22 @@ Changelog
 All notable changes to **edi_base** are documented here.
 Versioning follows the Odoo manifest (``19.0.x.y.z``); format follows Keep a Changelog.
 
+[18.0.1.9.0] — 2026-11-24
+-------------------------
+
+Fixed
+~~~~~
+
+- **The send cron no longer sends documents twice after a crash.** It used to
+  send up to 100 queued messages in one transaction: a worker killed or timed
+  out half-way rolled all of them back to ``queued``, and the next run sent the
+  ones that had already left a second time. Each message is now committed as
+  the new state ``sending`` before it leaves and with its outcome right after.
+- A message left ``sending`` for more than 15 minutes (the run died during that
+  very send) becomes an error that says the outcome is unknown and to check the
+  provider's portal before sending again. It is never re-queued by itself, and
+  keeps the new field ``send_started_at`` so the invoice stays locked.
+
 [19.0.1.8.0] — 2026-09-29
 -------------------------
 

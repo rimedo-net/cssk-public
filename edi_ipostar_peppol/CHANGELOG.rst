@@ -5,6 +5,24 @@ Changelog
 All notable changes to **edi_ipostar_peppol** are documented here.
 Versioning follows the Odoo manifest (``18.0.x.y.z``); format follows Keep a Changelog.
 
+[18.0.1.1.0] — 2026-11-24
+-------------------------
+
+Fixed
+~~~~~
+
+- **Received invoices are no longer lost after an outage or a busy week.** The
+  poll read a fixed 7-day window with at most 200 rows and no paging: an
+  outage longer than 7 days, or more than 200 documents in the window, dropped
+  documents silently. It now reads from one day before the last successful
+  poll, splits a full listing into halves of the period until each fits, and
+  downloads at most 200 new documents per run (then triggers itself again).
+- The last successful poll is kept in ``ipostar.inbound.last_success`` and only
+  moves once every new document is stored; the outcome of each poll is in
+  ``ipostar.inbound.last_result``. Both are shown in *Settings ▸ EDI ▸ iPoštár
+  ▸ Receiving*, where the date can be set back to read an older period again.
+- Needs ``edi_base`` 18.0.1.9.0 (send cron commits per message, H2).
+
 [18.0.1.0.0] — 2026-11-03
 -------------------------
 

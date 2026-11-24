@@ -37,7 +37,7 @@
                         invisible="direction != 'out' or state not in ('draft', 'ready', 'queued', 'error')"
                         groups="edi_base.group_edi_manager"/>
                     <field name="state" widget="statusbar"
-                        statusbar_visible="draft,ready,queued,sent,done"/>
+                        statusbar_visible="draft,ready,queued,sending,sent,done"/>
                 </header>
                 <sheet>
                     <widget name="web_ribbon" title="TEST"
@@ -64,6 +64,7 @@
                             <field name="external_id"/>
                             <field name="customer_ref"/>
                             <field name="provider_interchange_id" readonly="1"/>
+                            <field name="send_started_at" invisible="not send_started_at"/>
                         </group>
                         <group>
                             <field name="transmission_uuid" readonly="1"/>

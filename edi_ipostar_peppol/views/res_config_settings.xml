@@ -21,9 +21,19 @@
                         <setting>
                             <field name="ipostar_base_url"/>
                         </setting>
+                    </block>
+                    <block title="Receiving" name="ipostar_inbound_block">
+                        <setting help="The next poll reads the inbox from one day before this. Set it earlier to read an older period again.">
+                            <field name="ipostar_inbound_last_success"/>
+                            <div class="mt-1 text-muted">
+                                <field name="ipostar_inbound_last_result" readonly="1" nolabel="1"/>
+                            </div>
+                        </setting>
                         <setting>
                             <field name="ipostar_lookback_days"/>
                         </setting>
+                    </block>
+                    <block title="Transport" name="ipostar_transport_block">
                         <setting help="Only matters with several Peppol transports installed (e.g. ePošťák too).">
                             <field name="peppol_transport"/>
                         </setting>

@@ -47,15 +47,29 @@ Receive            ``GET /inbox?from=…`` + ``GET /inbox/{id}/xml``     cron *i
   and the message is flagged ``is_test_mode``. The sandbox test recipient is
   ``0245:9999999999``.
 * **Receiving without an ack.** iPoštár has no acknowledge endpoint, and
-  ``newForKey`` would mark a document read before Odoo has stored it. Each
-  poll therefore re-reads the last *N* days (7 by default) and skips
-  documents already stored (``provider_interchange_id``).
+  ``newForKey`` forgets a document once its XML is downloaded, before Odoo has
+  stored it. Each poll therefore lists the inbox from **one day before the last
+  successful poll** and skips documents already stored
+  (``provider_interchange_id``). An outage of any length loses nothing: the
+  next poll starts where the last good one ended.
+* **Last successful poll.** Kept in the system parameter
+  ``ipostar.inbound.last_success`` (UTC) and shown in *Settings ▸ EDI ▸
+  iPoštár ▸ Receiving*, with the outcome of the latest poll
+  (``ipostar.inbound.last_result``). It only moves forward when the poll listed
+  the whole period and every new document was stored; otherwise the result says
+  *INCOMPLETE* and the same period is read again. Set it earlier by hand to
+  re-read an older period. Empty (first poll) means the last *N* days
+  (*First poll look-back*, 7 by default).
+* **Paging.** ``GET /inbox`` has no cursor, only ``from``/``to``/``limit``. A
+  listing that returns a full page (200) is split into two halves of the period
+  until each half fits. At most 200 new documents are downloaded per run; the
+  cron then triggers itself again.
 
 Configuration
 =============
 
 #. *Settings ▸ EDI ▸ iPoštár*: API key (``ipk_…``), optionally the API URL
-   and the inbox look-back. **Test connection** calls ``GET /account``.
+   and the first-poll look-back. **Test connection** calls ``GET /account``.
 #. **Peppol Transport**: with ePošťák installed as well, pick *iPoštár* here.
    Left empty and with no other transport, iPoštár is used.
 #. Company: enable e-invoice sending (``peppol_send_enabled``). Both the
@@ -72,7 +86,9 @@ Usage
    The message is queued; the *EDI: send queued messages* cron (every 2
    minutes) posts it to iPoštár.
 #. The invoice tab *Peppol Messages* and *EDI ▸ Messages* show the state:
-   ``queued`` → ``sent`` → ``done`` (delivered) or ``error`` with the reason.
+   ``queued`` → ``sending`` → ``sent`` → ``done`` (delivered) or ``error``
+   with the reason. An error saying *Sending was interrupted* means the outcome
+   is unknown: check the iPoštár customer zone before sending again.
 #. Received invoices appear as **draft vendor bills** in the Peppol purchase
    journal after the *iPoštár: Poll Inbound Documents* cron (every 30 minutes),
    with the embedded PDF attached.
@@ -91,11 +107,13 @@ iPoštár: Poll Inbound Documents                        30 minutes
 Known issues
 ============
 
-* Inbox polling has no pagination: only the first 200 documents of the
-  look-back window are read, and a polling outage longer than the window
-  (7 days) loses documents silently.
-* The send cron commits only at the end of its batch; a worker crash after
-  some posts can resend them (iPoštár has no idempotency key).
+* More than 200 documents on a single day cannot be split any further: the
+  poll reports *INCOMPLETE* and keeps the mark (iPoštár caps a company at
+  2 000 documents a day). The paging was tested with mocked HTTP only; whether
+  ``to`` is inclusive is not documented, and either reading is handled.
+* A send cut off between the iPoštár call and the commit stays ``sending``
+  and becomes an error after 15 minutes; it is never re-sent by itself
+  (iPoštár has no idempotency key).
 * A non-UTF-8 inbound document stops the whole poll.
 * ``ipostar.connector`` has no access rules (warning at start-up; it is only
   used through ``sudo``/cron).
@@ -120,13 +138,25 @@ a do 2 minút odíde; stav doručenia sa overuje každých 30 minút. Prijaté
 e-faktúry sa každých 30 minút stiahnu ako koncepty dodávateľských faktúr
 aj s PDF.
 
+**Kontrola príjmu:** *Nastavenia ▸ EDI ▸ iPoštár ▸ Receiving* ukazuje
+*Last successful poll* (posledné úplné stiahnutie, UTC) a výsledok
+posledného pokusu. Ďalšie stiahnutie začína deň pred posledným úspešným,
+takže ani dlhší výpadok nič nestratí. *INCOMPLETE* znamená, že niektorý
+doklad sa nestiahol – rovnaké obdobie sa načíta znova. Dátum sa dá ručne
+posunúť dozadu, ak treba znova načítať staršie obdobie (už stiahnuté doklady
+sa preskočia).
+
+**Prerušené odoslanie:** chyba *Sending was interrupted* znamená, že nie je
+isté, či doklad odišiel. Najprv ho over v zóne iPoštáru, až potom odošli
+znova. Faktúra ostáva zamknutá.
+
 **Nastavenie:** *Nastavenia ▸ EDI ▸ iPoštár* – API kľúč (``ipk_…``),
 **Test connection** (overí účet a režim sandbox/produkcia), *Peppol Transport*
 = iPoštár. Firma: zapnuté posielanie e-faktúr, Peppol adresa ``0245:<DIČ>``
 registrovaná v účte iPoštáru, bankový účet označený ako dôveryhodný.
 
 **Obmedzenia:** sandbox simuluje doručenie (testovací príjemca
-``0245:9999999999``); príjem bez stránkovania a s pevným oknom 7 dní – pozri
+``0245:9999999999``); viac ako 200 dokladov za jeden deň – pozri
 *Known issues*.
 
 Credits

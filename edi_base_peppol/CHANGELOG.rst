@@ -30,6 +30,8 @@ Added
 Fixed
 ~~~~~
 
+- An outbound message in the new ``edi_base`` state ``sending`` counts as on
+  its way, like ``queued`` and ``sent``: Send via Peppol does not emit it again.
 - **The 19.0.1.4.0 upgrade could not run on a Method A database.** Its
   post-migrate set the new company settings through ``company.write()``, and
   core's ``res.company.write()`` calls ``_set_category_defaults()``, which

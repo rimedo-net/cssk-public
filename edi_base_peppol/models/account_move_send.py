@@ -51,7 +51,7 @@ class AccountMoveSend(models.AbstractModel):
                     or not self._is_applicable_to_move("edi_peppol", invoice)):
                 continue
             sent = invoice.peppol_message_ids.filtered(
-                lambda m: m.direction == "out" and m.state in ("queued", "sent"))
+                lambda m: m.direction == "out" and m.state in ("queued", "sending", "sent"))
             if sent:
                 continue  # already on its way, e.g. auto-sent when posted
             try:

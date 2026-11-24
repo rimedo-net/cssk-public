@@ -20,6 +20,16 @@ class EdiMessage(models.Model):
         # No job runner needed: edi_base's own cron sends what is queued.
         self.PROVIDER_DISPATCH_MAP[PROVIDER] = "cron"
 
+    def _poll_provider(self, provider):
+        if provider != PROVIDER:
+            return super()._poll_provider(provider)
+        state = {}
+        result = super(
+            EdiMessage, self.with_context(ipostar_poll_state=state)
+        )._poll_provider(provider)
+        self.env["ipostar.connector"]._finish_inbound_poll(state)
+        return result
+
     def _compute_is_test_mode(self):
         super()._compute_is_test_mode()
         for rec in self.filtered(lambda r: r.provider == PROVIDER):

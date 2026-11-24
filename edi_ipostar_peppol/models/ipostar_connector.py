@@ -16,10 +16,18 @@ There is no separate sandbox URL: a new iPoštár account *is* in sandbox until
 switched over, and every send answer says so (``sandbox``). That flag is
 stamped on the message so test traffic is badged as such.
 
-Inbound has no acknowledge call. ``newForKey`` would mark a document read the
-moment it is listed — before Odoo has stored it — so it is deliberately not
-used. Instead every poll re-reads a look-back window and skips ids already
-stored; a document whose import failed is simply picked up again.
+Inbound has no acknowledge call. ``newForKey`` forgets a document as soon as
+its XML has been downloaded — before Odoo has stored it — so it is deliberately
+not used. Instead every poll lists the inbox from the last successful poll
+(minus a day of overlap) and skips ids already stored; a document whose import
+failed is simply picked up again.
+
+``GET /inbox`` has no cursor or offset, only ``from`` / ``to`` / ``limit``. A
+listing that comes back full may hide more, so the period is split in halves
+until every part fits under the limit. The time of the last poll that saw
+everything is kept in the system parameter ``ipostar.inbound.last_success``
+(shown, and editable to re-read an older period, in Settings → EDI → iPoštár);
+it only moves forward once every new document of that poll is stored.
 """
 
 import datetime
@@ -29,7 +37,7 @@ from xml.etree import ElementTree
 
 import requests
 
-from odoo import _, models
+from odoo import _, fields, models
 from odoo.exceptions import UserError
 
 from odoo.addons.edi_base.exceptions import RetryableJobError
@@ -45,6 +53,14 @@ CBC_NS = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 DEFAULT_BASE_URL = "https://ipostar.app/api/v1"
 DEFAULT_LOOKBACK_DAYS = 7
 DEFAULT_INBOX_LIMIT = 200
+# Re-read this much before the last successful poll: a document delivered just
+# before it may be listed under an earlier date than the moment it arrived.
+OVERLAP = datetime.timedelta(days=1)
+# New documents downloaded per run; more → the cron is triggered again.
+MAX_FETCH_PER_RUN = 200
+
+PARAM_LAST_SUCCESS = "ipostar.inbound.last_success"
+PARAM_LAST_RESULT = "ipostar.inbound.last_result"
 TIMEOUT = 60
 # iPoštár validates documents up to 5 MB; embedded attachments are base64,
 # a third larger than the files themselves.
@@ -319,47 +335,107 @@ class IpostarConnector(models.TransientModel):
                 return listing[key]
         return []
 
+    def _inbound_since(self, cfg):
+        """First day to list: the last successful poll minus the overlap, or
+        the look-back window on the very first poll."""
+        last = self.env["ir.config_parameter"].sudo().get_param(PARAM_LAST_SUCCESS)
+        if last:
+            try:
+                return (fields.Datetime.to_datetime(last) - OVERLAP).date()
+            except ValueError:
+                _logger.warning("iPoštár: ignoring unreadable %s=%r",
+                                PARAM_LAST_SUCCESS, last)
+        return fields.Date.context_today(self) - datetime.timedelta(
+            days=cfg["lookback_days"])
+
+    def _list_inbox(self, cfg, since, until=None):
+        """Every inbox row from ``since`` (until ``until``, open if None).
+
+        Returns ``(items, complete)``. A full page is split in two halves —
+        ``[since, mid)`` and ``[mid, until)`` — until each part fits. Whether
+        the API's ``to`` is inclusive does not matter: at worst the middle day
+        is listed twice, and rows are de-duplicated by id. A single day that
+        still comes back full cannot be split any further: ``complete`` is
+        False and the poll will not count as successful.
+        """
+        params = {"from": since.isoformat(), "limit": DEFAULT_INBOX_LIMIT}
+        if until:
+            params["to"] = until.isoformat()
+        items = self._inbox_items(self._request(cfg, "GET", "/inbox", params=params))
+        if len(items) < DEFAULT_INBOX_LIMIT:
+            return items, True
+        end = until or (fields.Date.context_today(self) + datetime.timedelta(days=1))
+        days = (end - since).days
+        if days <= 1:
+            _logger.error(
+                "iPoštár inbox: %s documents on %s fill a whole page; some may "
+                "not be listed", len(items), since,
+            )
+            return items, False
+        mid = since + datetime.timedelta(days=days // 2)
+        first, first_ok = self._list_inbox(cfg, since, mid)
+        second, second_ok = self._list_inbox(cfg, mid, until)
+        return first + second, first_ok and second_ok
+
+    def _set_inbound_result(self, text):
+        _logger.info("iPoštár inbox: %s", text)
+        self.env["ir.config_parameter"].sudo().set_param(
+            PARAM_LAST_RESULT,
+            "%s UTC – %s" % (fields.Datetime.to_string(fields.Datetime.now()), text),
+        )
+
     def _poll_inbound(self):
+        # Filled in for edi.message._poll_provider, which moves the
+        # last-success mark only once the returned documents are stored.
+        state = self.env.context.get("ipostar_poll_state")
+        if state is None:
+            state = {}
         try:
             cfg = self._validate_config()
         except UserError as e:
             _logger.error("iPoštár inbound poll skipped, not configured: %s", e)
+            self._set_inbound_result(_("not polled: %s", e))
             return {"messages": [], "has_more": False}
 
-        since = datetime.date.today() - datetime.timedelta(days=cfg["lookback_days"])
+        started = fields.Datetime.now()
+        since = self._inbound_since(cfg)
         try:
-            listing = self._request(
-                cfg, "GET", "/inbox",
-                params={"from": since.isoformat(), "limit": DEFAULT_INBOX_LIMIT},
-            )
+            items, complete = self._list_inbox(cfg, since)
         except IpostarApiError as e:
             _logger.error("iPoštár inbox listing failed: %s", e)
+            self._set_inbound_result(_("listing failed, will retry: %s", e))
             return {"messages": [], "has_more": False}
 
-        items = self._inbox_items(listing)
-        ids = [str(item.get("id")) for item in items if item.get("id")]
+        unique = {}
+        for item in items:
+            doc_id = str(item.get("id") or "")
+            if doc_id and doc_id not in unique:
+                unique[doc_id] = item
         known = set(
             self.env["edi.message"].search([
                 ("provider", "=", PROVIDER),
                 ("direction", "=", "in"),
-                ("provider_interchange_id", "in", ids),
+                ("provider_interchange_id", "in", list(unique)),
             ]).mapped("provider_interchange_id")
         )
+        new_ids = [doc_id for doc_id in unique if doc_id not in known]
+        truncated = len(new_ids) > MAX_FETCH_PER_RUN
+        failed = 0
         messages = []
-        for item in items:
-            doc_id = str(item.get("id") or "")
-            if not doc_id or doc_id in known:
-                continue
+        for doc_id in new_ids[:MAX_FETCH_PER_RUN]:
+            item = unique[doc_id]
             try:
                 response = self._request(
                     cfg, "GET", "/inbox/%s/xml" % quote(doc_id, safe=""),
                     raw=True,
                 )
             except IpostarApiError as e:
-                # Not stored → reappears on the next poll inside the window.
+                # Not stored → listed again next poll; the mark stays put.
                 _logger.error("iPoštár: could not fetch inbox %s: %s", doc_id, e)
+                failed += 1
                 continue
             if not response.content:
+                failed += 1
                 continue
             messages.append({
                 "name": "ipostar_%s.xml" % doc_id,
@@ -369,11 +445,61 @@ class IpostarConnector(models.TransientModel):
                     item.get("invoice_ref") or item.get("invoiceRef") or doc_id
                 ),
             })
+
+        state.update({
+            "started": started,
+            "since": since,
+            "listed": len(unique),
+            "new": len(messages),
+            "raw_ids": [m["raw_id"] for m in messages],
+            # Only a poll that saw and fetched everything may move the mark.
+            "complete": complete and not truncated and not failed,
+            "failed": failed,
+            "truncated": truncated,
+        })
         _logger.info(
-            "iPoštár inbox: %s listed, %s new since %s", len(items), len(messages), since
+            "iPoštár inbox: %s listed since %s, %s new, %s failed%s%s",
+            len(unique), since, len(messages), failed,
+            "" if complete else ", listing incomplete",
+            ", more to fetch" if truncated else "",
         )
-        # A full page may hide more: let edi_base re-trigger the cron.
-        return {"messages": messages, "has_more": len(items) >= DEFAULT_INBOX_LIMIT and bool(messages)}
+        return {"messages": messages, "has_more": truncated}
+
+    def _finish_inbound_poll(self, state):
+        """After edi_base stored the documents: move the last-success mark if
+        this poll saw everything and every new document is now in Odoo."""
+        if not state.get("started"):
+            return  # not configured or listing failed: already reported
+        stored = set(
+            self.env["edi.message"].search([
+                ("provider", "=", PROVIDER),
+                ("direction", "=", "in"),
+                ("provider_interchange_id", "in", state["raw_ids"]),
+            ]).mapped("provider_interchange_id")
+        )
+        missing = len(set(state["raw_ids"]) - stored)
+        summary = _(
+            "listed %(listed)s since %(since)s, %(new)s new",
+            listed=state["listed"], since=state["since"], new=state["new"],
+        )
+        if state["complete"] and not missing:
+            self.env["ir.config_parameter"].sudo().set_param(
+                PARAM_LAST_SUCCESS, fields.Datetime.to_string(state["started"]))
+            self._set_inbound_result(_("OK, %s", summary))
+            return
+        reasons = []
+        if state["failed"] or missing:
+            reasons.append(_("%s could not be downloaded or stored",
+                             state["failed"] + missing))
+        if state["truncated"]:
+            reasons.append(_("more documents to download, continuing"))
+        elif not state["complete"] and not (state["failed"] or missing):
+            reasons.append(_("a single day has more documents than one page"))
+        self._set_inbound_result(_(
+            "INCOMPLETE, %(summary)s; %(reasons)s. The last successful poll "
+            "is kept, so the same period is read again.",
+            summary=summary, reasons="; ".join(reasons),
+        ))
 
     def _acknowledge_inbound(self, raw_id):
         # iPoštár has no acknowledge endpoint; dedup is by provider_interchange_id.

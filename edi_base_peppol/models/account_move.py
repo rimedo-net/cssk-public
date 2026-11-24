@@ -346,7 +346,7 @@ class AccountMove(models.Model):
         msg = self.peppol_message_ids.filtered(
             lambda m: m.direction == "out"
         )[:1]
-        if msg and msg.state in ("queued", "sent"):
+        if msg and msg.state in ("queued", "sending", "sent"):
             if raise_on_error:
                 raise UserError(
                     _(
