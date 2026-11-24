@@ -23,6 +23,9 @@ Added
   address. DNS goes through ``dnspython`` when installed, otherwise through
   DNS-over-HTTPS. Verified live: a Slovak company Odoo had addressed as
   ``9950:SK…`` was found and corrected to its real ``0245:…`` registration.
+- **Check on Peppol on customer invoices and credit notes** too: the same
+  check for the invoice's customer, with its answer as a badge in the header,
+  so a missing or wrong Peppol address is found before posting.
 
 Fixed
 ~~~~~

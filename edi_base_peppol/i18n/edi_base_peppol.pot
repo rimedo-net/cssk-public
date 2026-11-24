@@ -851,3 +851,15 @@ msgstr ""
 #: code:addons/edi_base_peppol/models/res_partner.py:0
 msgid "none"
 msgstr ""
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,field_description:edi_base_peppol.field_account_bank_statement_line__peppol_partner_smp_status
+#: model:ir.model.fields,field_description:edi_base_peppol.field_account_move__peppol_partner_smp_status
+msgid "Customer on Peppol"
+msgstr ""
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/account_move.py:0
+msgid "Set the customer first."
+msgstr ""
