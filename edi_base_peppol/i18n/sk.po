@@ -731,3 +731,228 @@ msgstr "bez krajiny"
 #: code:addons/edi_base_peppol/models/account_move.py:0
 msgid "queued"
 msgstr "vo fronte"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid " and "
+msgstr " a "
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid ""
+"%(participant)s is registered on Peppol and receives BIS Billing 3.0 "
+"invoices and credit notes."
+msgstr ""
+"%(participant)s je registrovaný v sieti Peppol a prijíma faktúry a dobropisy "
+"Peppol BIS Billing 3.0."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid ""
+"%(participant)s is registered on Peppol but does not receive BIS Billing 3.0"
+" %(missing)s, so sending them will be refused."
+msgstr ""
+"%(participant)s je registrovaný v sieti Peppol, ale neprijíma %(missing)s "
+"BIS Billing 3.0, takže ich odoslanie bude odmietnuté."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid ""
+"%s has neither a Peppol address nor a Slovak VAT number / DIČ to look up. "
+"Set the Peppol e-address (EAS) and Peppol Endpoint first."
+msgstr ""
+"%s nemá Peppol adresu ani slovenské IČ DPH / DIČ, podľa ktorého by sa dal "
+"vyhľadať. Najprv nastavte Peppol e-adresu (EAS) a Peppol Endpoint."
+
+#. module: edi_base_peppol
+#: model_terms:ir.ui.view,arch_db:edi_base_peppol.view_partner_form_peppol_smp
+msgid ""
+"Ask the Peppol network whether this contact is registered and receives "
+"e-invoices. Without a Peppol address, the Slovak VAT number / DIČ is looked "
+"up."
+msgstr ""
+"Overí v sieti Peppol, či je kontakt registrovaný a prijíma e-faktúry. Ak "
+"nemá Peppol adresu, vyhľadá sa podľa slovenského IČ DPH / DIČ."
+
+#. module: edi_base_peppol
+#: model_terms:ir.ui.view,arch_db:edi_base_peppol.view_partner_form_peppol_smp
+msgid "Check on Peppol"
+msgstr "Overiť v Peppol"
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_partner__peppol_smp_participant
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_users__peppol_smp_participant
+msgid "Checked Peppol address"
+msgstr "Overená Peppol adresa"
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_partner__peppol_smp_checked_on
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_users__peppol_smp_checked_on
+msgid "Checked on Peppol"
+msgstr "Overené v Peppol"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid ""
+"Could not check %(partner)s on the Peppol network:\n"
+"\n"
+"%(error)s"
+msgstr ""
+"%(partner)s sa nepodarilo overiť v sieti Peppol:\n"
+"\n"
+"%(error)s"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid "It does not receive Invoice Responses."
+msgstr "Neprijíma Invoice Response (odpovede na faktúru)."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+#: model:ir.model.fields.selection,name:edi_base_peppol.selection__res_partner__peppol_smp_state__not_registered
+#: model:ir.model.fields.selection,name:edi_base_peppol.selection__res_partner__peppol_smp_status__not_registered
+msgid "Not on Peppol"
+msgstr "Nie je v Peppol"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+#: model:ir.model.fields.selection,name:edi_base_peppol.selection__res_partner__peppol_smp_state__no_billing
+#: model:ir.model.fields.selection,name:edi_base_peppol.selection__res_partner__peppol_smp_status__no_billing
+msgid "On Peppol, but not for BIS3 invoices"
+msgstr "V Peppol, ale nie pre faktúry BIS3"
+
+#. module: edi_base_peppol
+#: model:ir.model,name:edi_base_peppol.model_edi_peppol_smp
+msgid "Peppol SML/SMP participant lookup"
+msgstr "Vyhľadanie účastníka Peppol (SML/SMP)"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid ""
+"Peppol address set to %(new)s: the Peppol network has this contact "
+"registered under it (previously: %(old)s)."
+msgstr ""
+"Peppol adresa nastavená na %(new)s: pod touto adresou je kontakt "
+"registrovaný v sieti Peppol (predtým: %(old)s)."
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_partner__peppol_smp_state
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_users__peppol_smp_state
+msgid "Peppol network check"
+msgstr "Overenie v sieti Peppol"
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_partner__peppol_smp_status
+#: model:ir.model.fields,field_description:edi_base_peppol.field_res_users__peppol_smp_status
+msgid "Peppol network status"
+msgstr "Stav v sieti Peppol"
+
+#. module: edi_base_peppol
+#: model:ir.model.fields.selection,name:edi_base_peppol.selection__res_partner__peppol_smp_state__valid
+#: model:ir.model.fields.selection,name:edi_base_peppol.selection__res_partner__peppol_smp_status__valid
+msgid "Receives e-invoices"
+msgstr "Prijíma e-faktúry"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid "Receives e-invoices on Peppol"
+msgstr "Prijíma e-faktúry cez Peppol"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/peppol_smp.py:0
+msgid "The DNS-over-HTTPS resolver %(url)s did not answer: %(error)s"
+msgstr "DNS-over-HTTPS resolver %(url)s neodpovedal: %(error)s"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/peppol_smp.py:0
+msgid "The DNS-over-HTTPS resolver answered with DNS status %s."
+msgstr "DNS-over-HTTPS resolver odpovedal so stavom DNS %s."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/peppol_smp.py:0
+msgid "The Peppol SML (DNS) did not answer: %s"
+msgstr "Peppol SML (DNS) neodpovedal: %s"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid ""
+"The Peppol network does not know %(tried)s, so Peppol cannot deliver to this"
+" contact. Either it has not registered yet, or it is registered under "
+"another address — ask for it."
+msgstr ""
+"Sieť Peppol nepozná %(tried)s, takže cez Peppol sa tomuto kontaktu doručiť "
+"nedá. Buď sa ešte nezaregistroval, alebo je registrovaný pod inou adresou — "
+"vyžiadajte si ju."
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,help:edi_base_peppol.field_res_partner__peppol_smp_state
+#: model:ir.model.fields,help:edi_base_peppol.field_res_users__peppol_smp_state
+msgid ""
+"The answer the Peppol network gave the last time this contact was checked."
+msgstr "Odpoveď siete Peppol pri poslednom overení tohto kontaktu."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid "The contact's Peppol address was changed to %s."
+msgstr "Peppol adresa kontaktu bola zmenená na %s."
+
+#. module: edi_base_peppol
+#: model:ir.model.fields,help:edi_base_peppol.field_res_partner__peppol_smp_status
+#: model:ir.model.fields,help:edi_base_peppol.field_res_users__peppol_smp_status
+msgid ""
+"The last network answer, shown only while it still describes the contact's "
+"current Peppol address."
+msgstr ""
+"Posledná odpoveď siete, zobrazená len kým platí pre aktuálnu Peppol adresu "
+"kontaktu."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/peppol_smp.py:0
+msgid "The participant's SMP %(url)s answered HTTP %(status)s."
+msgstr "SMP účastníka %(url)s odpovedal HTTP %(status)s."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/peppol_smp.py:0
+msgid "The participant's SMP %(url)s did not answer: %(error)s"
+msgstr "SMP účastníka %(url)s neodpovedal: %(error)s"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/peppol_smp.py:0
+msgid "The participant's SMP answered something that is not XML."
+msgstr "SMP účastníka odpovedal niečím, čo nie je XML."
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid "credit notes"
+msgstr "dobropisy"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid "invoices"
+msgstr "faktúry"
+
+#. module: edi_base_peppol
+#. odoo-python
+#: code:addons/edi_base_peppol/models/res_partner.py:0
+msgid "none"
+msgstr "žiadna"

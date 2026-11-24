@@ -8,6 +8,22 @@ Versioning follows the Odoo manifest (``19.0.x.y.z``); format follows Keep a Cha
 [Unreleased]
 ------------
 
+Added
+~~~~~
+
+- **Check on Peppol: a provider-neutral participant lookup** (``edi.peppol.smp``,
+  partner-form button). It asks the network directly, SML (DNS NAPTR) → SMP
+  (ServiceGroup), so it needs no access point account and works with iPoštár,
+  which has no lookup API, as well as with any other provider. It uses
+  OpenPeppol's own SML zone ``participant.sml.prod.tech.peppol.org``; the old
+  European Commission zone and its ``B-<md5>`` CNAMEs no longer answer, which
+  is why Odoo's deprecated direct lookup finds nobody. When the configured
+  address is not registered, a Slovak contact's VAT number is tried as
+  ``0245:<DIČ>`` and ``9950:SK<DIČ>``, and a hit becomes the contact's Peppol
+  address. DNS goes through ``dnspython`` when installed, otherwise through
+  DNS-over-HTTPS. Verified live: a Slovak company Odoo had addressed as
+  ``9950:SK…`` was found and corrected to its real ``0245:…`` registration.
+
 Fixed
 ~~~~~
 

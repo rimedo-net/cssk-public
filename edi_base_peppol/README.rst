@@ -32,3 +32,35 @@ Configuration
    likewise on each customer/vendor.
 #. Optionally, in *Settings ▸ EDI ▸ Peppol BIS3*, enable **Auto-send Peppol on
    Invoice Post** and/or pick the **Peppol Purchase Journal** for inbound bills.
+
+Checking a contact on the Peppol network
+========================================
+
+**Check on Peppol** on the contact form (next to the Peppol address) asks the
+Peppol network itself whether the contact is registered and receives BIS
+Billing 3.0 invoices and credit notes. It needs no access point account, so it
+works the same whichever provider the database sends through.
+
+* **SML → SMP.** The participant id ``eas:endpoint`` is hashed
+  (``base32(sha256(lower(id)))``) into a DNS name in OpenPeppol's SML zone
+  ``participant.sml.prod.tech.peppol.org``; its U-NAPTR record names the
+  participant's SMP, whose ServiceGroup lists the document types it receives.
+* **Slovak VAT numbers.** Most Slovak participants are registered under the
+  DIČ (``0245:<DIČ>``), while Odoo derives ``9950:SK<DIČ>`` from the VAT
+  number. When the configured address is not on the network — or the contact
+  has none — both spellings of the VAT number / DIČ are tried, and a hit
+  becomes the contact's Peppol address (logged in the chatter).
+* The answer is kept on the commercial partner (``peppol_smp_state``) with the
+  address it was given for, and is shown as a badge only while that address is
+  unchanged. Other code can call ``res.partner._peppol_smp_check()`` or the
+  provider-neutral ``edi.peppol.smp._lookup("0245:…")`` directly.
+* **"Could not check" is never "not registered".** A DNS timeout or an SMP that
+  does not answer is an error dialog, and the stored answer is left alone.
+
+System parameters:
+
+* ``peppol.sml_zone`` — the SML zone; set
+  ``participant.sml.test.tech.peppol.org`` for the Peppol test network.
+* ``peppol.smp.doh_url`` — DNS-over-HTTPS JSON endpoint used when
+  ``dnspython`` is not installed (the stock Odoo image lacks it); default
+  ``https://cloudflare-dns.com/dns-query``. Only the hashed id is sent there.
