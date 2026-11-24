@@ -157,6 +157,18 @@ class TestEkasaProvider(AccountTestInvoicingCommon):
         self.assertEqual(receipt.l10n_sk_ekasa_call_ids.outcome, "found")
         self.assertEqual(receipt.l10n_sk_ekasa_call_count, 1)
 
+    def test_partner_from_an_ekasa_receipt_carries_its_dic(self):
+        receipt = self._receipt(QR_ONLINE_FUEL)
+        with patch.object(self.provider_cls, "_fetch",
+                          self._answer("receipt_online_fuel.json")):
+            receipt.action_capture()
+        receipt.action_create_partner()
+        partner = receipt.partner_id
+        self.assertEqual(partner.vat, "SK7199000006")
+        self.assertEqual(partner.company_registry, "99000022")
+        if "l10n_sk_dic" in partner._fields:
+            self.assertEqual(partner.l10n_sk_dic, "2077000002")
+
     def test_restaurant_receipt_captures_three_rates(self):
         receipt = self._receipt(QR_OFFLINE_RESTAURANT)
         with patch.object(self.provider_cls, "_fetch",

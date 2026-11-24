@@ -40,3 +40,14 @@ class CSSKReceipt(models.Model):
             "view_mode": "list,form",
             "domain": [("receipt_id", "=", self.id)],
         }
+
+    def _prepare_partner_vals(self):
+        """A seller from eKasa: record its DIČ too, not only the IČ DPH. It
+        is on every receipt and is what the Slovak VAT return, the Pohoda
+        export and the Peppol address (0245:DIČ) are keyed on; a seller that
+        is not a VAT payer has no IČ DPH at all."""
+        vals = super()._prepare_partner_vals()
+        if (self.l10n_sk_ekasa_okp and self.seller_tax_id
+                and "l10n_sk_dic" in self.env["res.partner"]._fields):
+            vals["l10n_sk_dic"] = self.seller_tax_id
+        return vals
