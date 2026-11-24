@@ -204,3 +204,67 @@ class TestUBLSlovakia(TestUBLCommon):
             ),
             "OR OS Bratislava I, oddiel Sro, vložka 1/B",
         )
+
+
+@tagged('post_install', '-at_install')
+class TestUBLSlovakiaImport(TestUBLCommon):
+    """A received UBL brings the supplier's IBAN (BT-84) onto the bill."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env.ref('base.EUR').active = True
+        cls.sk = cls.env.ref('base.sk')
+
+    def _ubl(self, supplier_vat, supplier_name, iban):
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+ xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+ xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+ <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>
+ <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+ <cbc:ID>DOD-1</cbc:ID><cbc:IssueDate>2026-11-02</cbc:IssueDate>
+ <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode><cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+ <cac:AccountingSupplierParty><cac:Party>
+  <cac:PostalAddress><cac:Country><cbc:IdentificationCode>SK</cbc:IdentificationCode></cac:Country></cac:PostalAddress>
+  <cac:PartyTaxScheme><cbc:CompanyID>{supplier_vat}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>
+  <cac:PartyLegalEntity><cbc:RegistrationName>{supplier_name}</cbc:RegistrationName></cac:PartyLegalEntity>
+ </cac:Party></cac:AccountingSupplierParty>
+ <cac:AccountingCustomerParty><cac:Party>
+  <cac:PartyLegalEntity><cbc:RegistrationName>{self.env.company.name}</cbc:RegistrationName></cac:PartyLegalEntity>
+ </cac:Party></cac:AccountingCustomerParty>
+ <cac:PaymentMeans><cbc:PaymentMeansCode>30</cbc:PaymentMeansCode><cbc:PaymentID>2026000101</cbc:PaymentID>
+  <cac:PayeeFinancialAccount><cbc:ID>{iban}</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>
+ <cac:TaxTotal><cbc:TaxAmount currencyID="EUR">23.00</cbc:TaxAmount></cac:TaxTotal>
+ <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="EUR">100.00</cbc:LineExtensionAmount>
+  <cbc:TaxExclusiveAmount currencyID="EUR">100.00</cbc:TaxExclusiveAmount>
+  <cbc:TaxInclusiveAmount currencyID="EUR">123.00</cbc:TaxInclusiveAmount>
+  <cbc:PayableAmount currencyID="EUR">123.00</cbc:PayableAmount></cac:LegalMonetaryTotal>
+ <cac:InvoiceLine><cbc:ID>1</cbc:ID><cbc:InvoicedQuantity unitCode="C62">1</cbc:InvoicedQuantity>
+  <cbc:LineExtensionAmount currencyID="EUR">100.00</cbc:LineExtensionAmount>
+  <cac:Item><cbc:Name>Služba</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>23</cbc:Percent>
+   <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item>
+  <cac:Price><cbc:PriceAmount currencyID="EUR">100.00</cbc:PriceAmount></cac:Price></cac:InvoiceLine>
+</Invoice>""".encode()
+
+    def _import(self, xml):
+        attachment = self.env['ir.attachment'].create({
+            'name': 'bill.xml', 'raw': xml, 'mimetype': 'application/xml'})
+        bill = self.env['account.move'].create({
+            'move_type': 'in_invoice', 'journal_id': self.company_data['default_journal_purchase'].id})
+        bill._extend_with_attachments(attachment, new=True)
+        return bill
+
+    def test_iban_of_a_known_supplier(self):
+        supplier = self.env['res.partner'].create({
+            'name': "SK Dodavatel s.r.o.", 'is_company': True, 'vat': "SK2020000004",
+            'country_id': self.sk.id})
+        bill = self._import(self._ubl("SK2020000004", "SK Dodavatel s.r.o.", "SK3112000000198742637541"))
+        self.assertEqual(bill.partner_id, supplier)
+        self.assertEqual(bill.partner_bank_id.sanitized_acc_number, "SK3112000000198742637541")
+        self.assertEqual(bill.partner_bank_id.partner_id, supplier)
+
+    def test_iban_of_a_supplier_created_by_the_import(self):
+        bill = self._import(self._ubl("SK2020000015", "Novy Dodavatel a.s.", "SK3112000000198742637541"))
+        self.assertEqual(bill.partner_id.name, "Novy Dodavatel a.s.")
+        self.assertEqual(bill.partner_bank_id.partner_id, bill.partner_id)
