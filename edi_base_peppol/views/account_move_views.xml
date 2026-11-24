@@ -21,12 +21,20 @@
                     help="Send a Peppol Invoice Response (accept / reject /
                     dispute) back to the supplier for this received vendor
                     bill."/>
+                <button name="action_peppol_smp_check" type="object"
+                    string="Check on Peppol"
+                    invisible="move_type not in ('out_invoice', 'out_refund') or not partner_id or state == 'cancel'"
+                    help="Ask the Peppol network whether the customer is registered and receives e-invoices. Without a Peppol address, the Slovak VAT number / DIČ is looked up."/>
                 <field name="peppol_active" invisible="1"/>
                 <field name="peppol_route" widget="badge"
                     invisible="not peppol_route or state != 'posted'"
                     decoration-info="peppol_route == 'peppol'"
                     decoration-danger="peppol_route == 'blocked'"/>
                 <field name="peppol_ir_can_respond" invisible="1"/>
+                <field name="peppol_partner_smp_status" widget="badge"
+                    invisible="not peppol_partner_smp_status or move_type not in ('out_invoice', 'out_refund')"
+                    decoration-success="peppol_partner_smp_status == 'valid'"
+                    decoration-warning="peppol_partner_smp_status != 'valid'"/>
                 <field name="peppol_status" widget="badge"
                     invisible="not peppol_status"/>
                 <field name="peppol_response" widget="badge"

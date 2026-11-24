@@ -75,6 +75,9 @@ class AccountMove(models.Model):
         "settings and the customer.")
     peppol_route_reason = fields.Char(
         string="Why", compute="_compute_peppol_active")
+    peppol_partner_smp_status = fields.Selection(
+        related="commercial_partner_id.peppol_smp_status",
+        string="Customer on Peppol")
     peppol_status = fields.Char(
         compute="_compute_peppol_status",
         string="Peppol Status",
@@ -453,6 +456,18 @@ class AccountMove(models.Model):
                     )
                 )
             move._peppol_emit(queue_send=True)
+
+    def action_peppol_smp_check(self):
+        """Invoice button: check the customer on the Peppol network.
+
+        The same check as on the contact (``res.partner._peppol_smp_check``),
+        so a corrected address lands on the customer and the invoice's route
+        follows it.
+        """
+        self.ensure_one()
+        if not self.partner_id:
+            raise UserError(_("Set the customer first."))
+        return self.partner_id.action_peppol_smp_check()
 
     # ------------------------------------------------------------------
     # Outbound business Invoice Response (buyer accepts/rejects/disputes a

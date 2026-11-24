@@ -36,7 +36,8 @@ Configuration
 Checking a contact on the Peppol network
 ========================================
 
-**Check on Peppol** on the contact form (next to the Peppol address) asks the
+**Check on Peppol** on the contact form (next to the Peppol address) and in
+the header of a customer invoice or credit note asks the
 Peppol network itself whether the contact is registered and receives BIS
 Billing 3.0 invoices and credit notes. It needs no access point account, so it
 works the same whichever provider the database sends through.

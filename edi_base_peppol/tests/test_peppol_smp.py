@@ -228,3 +228,15 @@ class TestPeppolSmp(TransactionCase):
             with self.assertRaises(UserError):
                 partner.action_peppol_smp_check()
         self.assertFalse(partner.peppol_smp_state)
+
+    # -- the invoice button ----------------------------------------------
+    def test_the_invoice_button_checks_and_corrects_the_customer(self):
+        self.register("0245:2023489446")
+        partner = self.partner(vat="SK2023489446", peppol_eas="9950",
+                               peppol_endpoint="SK2023489446")
+        move = self.env["account.move"].create({
+            "move_type": "out_invoice", "partner_id": partner.id})
+        action = move.action_peppol_smp_check()
+        self.assertEqual(action["params"]["type"], "success")
+        self.assertEqual(partner.peppol_eas, "0245")
+        self.assertEqual(move.peppol_partner_smp_status, "valid")
