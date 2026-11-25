@@ -234,8 +234,18 @@ class TestPeppolSmp(TransactionCase):
         self.register("0245:2023489446")
         partner = self.partner(vat="SK2023489446", peppol_eas="9950",
                                peppol_endpoint="SK2023489446")
+        # The check needs no accounting, but an invoice needs a sale journal,
+        # and a database without a chart of accounts has none.
+        Journal = self.env["account.journal"]
+        journal = Journal.search([
+            *Journal._check_company_domain(self.env.company),
+            ("type", "=", "sale"),
+        ], limit=1) or Journal.create({
+            "name": "Peppol check sales", "code": "PPCS", "type": "sale",
+            "company_id": self.env.company.id})
         move = self.env["account.move"].create({
-            "move_type": "out_invoice", "partner_id": partner.id})
+            "move_type": "out_invoice", "partner_id": partner.id,
+            "journal_id": journal.id})
         action = move.action_peppol_smp_check()
         self.assertEqual(action["params"]["type"], "success")
         self.assertEqual(partner.peppol_eas, "0245")
