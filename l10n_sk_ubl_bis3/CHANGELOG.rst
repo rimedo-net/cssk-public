@@ -8,6 +8,22 @@ Versioning follows the Odoo manifest (``19.0.x.y.z``); format follows Keep a Cha
 [Unreleased]
 ------------
 
+[18.0.3.2.1] — 2026-11-25
+-------------------------
+
+Fixed
+~~~~~
+
+- **KeyError 'ubl_bis3_sk' when Odoo's own ``account_peppol`` is installed.**
+  ``account_peppol`` verifies a partner on the network whenever one with a
+  Peppol address is created or its address changes, and looks the partner's
+  format up in ``account.edi.xml.ubl_21._get_customization_ids()``, which had
+  no entry for ``ubl_bis3_sk``. Creating or correcting any Slovak partner
+  registered on Peppol therefore failed, including the address correction
+  done by *Check on Peppol* (``edi_base_peppol``). Our format now maps to the
+  plain BIS Billing 3.0 (and self-billing 3.0) CustomizationID, as Slovakia
+  has no national CIUS. Found on the QA database 2026-11-25.
+
 [18.0.3.2.0] — 2026-11-02
 -------------------------
 

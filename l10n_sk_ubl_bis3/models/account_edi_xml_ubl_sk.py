@@ -241,3 +241,27 @@ class AccountEdiXmlUbl_Sk(models.AbstractModel):
                     eas=partner.peppol_eas or _("nothing"),
                 )
         return constraints
+
+
+class AccountEdiXmlUbl_21(models.AbstractModel):
+    _inherit = 'account.edi.xml.ubl_21'
+
+    # Core keys the CustomizationID a receiver must advertise by format.
+    # Odoo's own account_peppol looks a partner's format up in these maps
+    # whenever a partner with a Peppol address is created or its address
+    # changes (and on its "verify" button); without an entry for our format
+    # that lookup raised KeyError: 'ubl_bis3_sk' for every Slovak partner
+    # registered on Peppol. Slovakia has no national CIUS, so the IDs are
+    # plain Peppol BIS Billing 3.0 (and self-billing 3.0).
+
+    def _get_customization_ids(self):
+        # EXTENDS 'account_edi_ubl_cii'
+        ids = super()._get_customization_ids()
+        ids['ubl_bis3_sk'] = ids['ubl_bis3']
+        return ids
+
+    def _get_selfbilling_customization_ids(self):
+        # EXTENDS 'account_edi_ubl_cii'
+        ids = super()._get_selfbilling_customization_ids()
+        ids['ubl_bis3_sk'] = ids['ubl_bis3']
+        return ids
