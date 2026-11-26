@@ -8,6 +8,16 @@ Versioning follows the Odoo manifest (``19.0.x.y.z``); format follows Keep a Cha
 [Unreleased]
 ------------
 
+Added
+~~~~~
+
+- **Advance invoices get their own entry in the activity menu** (clock in the
+  navbar), next to *Sales Order*; the sales entry no longer lists them. The
+  *Advance Invoices* menu has its own search view with *My Activities* and
+  *Late Activities* visible. — 19.0.2.8.6.
+- The advance invoice list view has priority 32, so it can never become the
+  default list of ``sale.order``. — 19.0.2.8.6.
+
 Carry-over to 18.0
 ~~~~~~~~~~~~~~~~~~
 

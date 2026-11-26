@@ -267,6 +267,7 @@ msgstr ""
 #: model:ir.ui.menu,name:sale_order_advance_invoice.menu_sale_advance_invoices
 #: model_terms:ir.ui.view,arch_db:sale_order_advance_invoice.view_advance_invoice_list
 #: model_terms:ir.ui.view,arch_db:sale_order_advance_invoice.view_sale_order_form_advance_invoice
+#: code:addons/sale_order_advance_invoice/models/res_users.py:0
 msgid "Advance Invoices"
 msgstr ""
 

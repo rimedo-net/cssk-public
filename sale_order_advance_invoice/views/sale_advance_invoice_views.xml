@@ -4,6 +4,9 @@
     <record id="view_advance_invoice_list" model="ir.ui.view">
         <field name="name">sale.order.list (advance invoices)</field>
         <field name="model">sale.order</field>
+        <!-- Referenced by the advance invoice action only; never the
+             default list view of sale.order. -->
+        <field name="priority">32</field>
         <field name="arch" type="xml">
             <list string="Advance Invoices"
                   sample="1"
@@ -52,10 +55,29 @@
         </field>
     </record>
 
+    <!-- Standard sale search with the activity filters made visible,
+         so advance invoices can be filtered by the user's activities. -->
+    <record id="view_advance_invoice_search" model="ir.ui.view">
+        <field name="name">sale.order.search (advance invoices)</field>
+        <field name="model">sale.order</field>
+        <field name="mode">primary</field>
+        <field name="priority">32</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <filter name="filter_activities_my" position="attributes">
+                <attribute name="invisible"/>
+            </filter>
+            <filter name="activities_overdue" position="attributes">
+                <attribute name="invisible"/>
+            </filter>
+        </field>
+    </record>
+
     <record id="action_advance_invoices" model="ir.actions.act_window">
         <field name="name">Advance Invoices</field>
         <field name="res_model">sale.order</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_advance_invoice_search"/>
         <field name="domain">[('is_advance_invoice', '=', True)]</field>
         <field name="context">{'default_is_advance_invoice': True, 'default_require_payment': True}</field>
     </record>
