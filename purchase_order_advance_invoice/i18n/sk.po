@@ -551,12 +551,14 @@ msgid "Received Advance Invoice"
 msgstr "Prijatá zálohová faktúra"
 
 #. module: purchase_order_advance_invoice
+#. odoo-python
 #: model:ir.actions.act_window,name:purchase_order_advance_invoice.action_purchase_order_advance
 #: model:ir.ui.menu,name:purchase_order_advance_invoice.menu_account_purchase_order_advance
 #: model:ir.ui.menu,name:purchase_order_advance_invoice.menu_purchase_order_advance
 #: model_terms:ir.ui.view,arch_db:purchase_order_advance_invoice.purchase_order_advance_list
 #: model_terms:ir.ui.view,arch_db:purchase_order_advance_invoice.purchase_order_advance_search
 #: model_terms:ir.ui.view,arch_db:purchase_order_advance_invoice.res_config_settings_view_form_purchase_advance
+#: code:addons/purchase_order_advance_invoice/models/res_users.py:0
 msgid "Received Advance Invoices"
 msgstr "Prijaté zálohové faktúry"
 
@@ -791,3 +793,18 @@ msgstr "Daňový doklad k preddavku je po termíne"
 #: model:mail.activity.type,name:purchase_order_advance_invoice.mail_activity_type_chase_tax_document
 msgid "Chase Advance Tax Document"
 msgstr "Urgovať daňový doklad k preddavku"
+
+#. module: purchase_order_advance_invoice
+#: model_terms:ir.ui.view,arch_db:purchase_order_advance_invoice.purchase_order_advance_search
+msgid "Activities of"
+msgstr "Aktivity pre"
+
+#. module: purchase_order_advance_invoice
+#: model_terms:ir.ui.view,arch_db:purchase_order_advance_invoice.purchase_order_advance_search
+msgid "My Activities"
+msgstr "Moje aktivity"
+
+#. module: purchase_order_advance_invoice
+#: model_terms:ir.ui.view,arch_db:purchase_order_advance_invoice.purchase_order_advance_search
+msgid "Late Activities"
+msgstr "Omeškané aktivity"

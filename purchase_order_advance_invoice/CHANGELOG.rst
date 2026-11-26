@@ -16,9 +16,21 @@ Carry-over to 18.0
 - the per-language ``name`` in ``create_accounts`` (helpers in ``tools.py``,
   used by ``_apply_purchase_advance_setup``) — 19.0.1.2.1.
 
+Added
+~~~~~
+
+- **Received advance invoices get their own entry in the activity menu**
+  (clock in the navbar), next to *Purchase Order*; the purchase entry no
+  longer lists them. The *Received Advance Invoices* search offers *My
+  Activities*, *Late Activities* and *Activities of*. — 19.0.1.2.3.
+
 Fixed
 ~~~~~
 
+- **The advance list and search views no longer replace the purchase
+  defaults.** With the same priority they won on name order, so the activity
+  menu opened purchase orders without its activity filters (all orders were
+  listed). They now have priority 32. — 19.0.1.2.3.
 - The *advance purchase journal* picker in Settings listed every journal: Odoo
   drops a string domain when it copies a field into a related one.
 

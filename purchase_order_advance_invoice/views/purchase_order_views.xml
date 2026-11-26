@@ -89,6 +89,11 @@
         <field name="name">purchase.order.advance.list</field>
         <field name="model">purchase.order</field>
         <field name="mode">primary</field>
+        <!-- Lower precedence than the core purchase views: the advance
+             invoice action references this view explicitly, it must not
+             become the default list view of purchase.order (systray
+             activity menu, generic actions). -->
+        <field name="priority">32</field>
         <field name="arch" type="xml">
             <list string="Received Advance Invoices">
                 <field name="name" />
@@ -121,6 +126,11 @@
         <field name="name">purchase.order.advance.search</field>
         <field name="model">purchase.order</field>
         <field name="mode">primary</field>
+        <!-- Lower precedence than the core purchase views: the advance
+             invoice action references this view explicitly, it must not
+             become the default search view of purchase.order (systray
+             activity menu, generic actions). -->
+        <field name="priority">32</field>
         <field name="arch" type="xml">
             <search string="Received Advance Invoices">
                 <field name="name" />
@@ -139,6 +149,18 @@
                     string="Unpaid"
                     name="unpaid"
                     domain="[('advance_invoice_payment_status', 'in', ('none', 'paid_partially'))]"
+                />
+                <separator />
+                <field name="activity_user_id" string="Activities of" />
+                <filter
+                    string="My Activities"
+                    name="filter_activities_my"
+                    domain="[('activity_user_id', '=', uid)]"
+                />
+                <filter
+                    string="Late Activities"
+                    name="activities_overdue"
+                    domain="[('my_activity_date_deadline', '&lt;', 'today')]"
                 />
                 <group>
                     <filter
